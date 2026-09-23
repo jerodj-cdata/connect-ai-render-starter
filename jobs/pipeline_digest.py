@@ -16,8 +16,17 @@ import requests
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger("pipeline_digest")
 
-CATALOG = os.environ.get("CDATA_SF_CATALOG", "Salesforce1")
-LOOKAHEAD_DAYS = int(os.environ.get("DIGEST_LOOKAHEAD_DAYS", "14"))
+def _required(name: str) -> str:
+    # Strip like app/config.py does: a PAT pasted into Render with a trailing
+    # newline authenticates in the web service but 401s here otherwise.
+    value = os.environ.get(name, "").strip()
+    if not value:
+        sys.exit(f"Missing required environment variable: {name}")
+    return value
+
+
+CATALOG = os.environ.get("CDATA_SF_CATALOG", "Salesforce1").strip()
+LOOKAHEAD_DAYS = int(os.environ.get("DIGEST_LOOKAHEAD_DAYS", "14").strip())
 
 if not re.fullmatch(r"[A-Za-z0-9_]+", CATALOG):
     sys.exit(f"Invalid CDATA_SF_CATALOG: {CATALOG!r}")
@@ -52,10 +61,14 @@ ON CONFLICT (snapshot_date, opportunity_id) DO UPDATE SET
 
 
 def fetch_open_opportunities(cutoff: dt.date) -> list[dict]:
+    base_url = os.environ.get("CDATA_API_URL", "https://cloud.cdata.com/api").strip()
+    username = _required("CDATA_USERNAME")
+    pat = _required("CDATA_PAT")
+    # Enough to tell a wrong account or a truncated paste apart from a 401 that
+    # means the PAT itself was revoked. The PAT value is never logged.
+    log.info("Connecting to %s as %s (PAT length %d)", base_url, username, len(pat))
     conn = cdata_connect_ai.connect(
-        base_url=os.environ.get("CDATA_API_URL", "https://cloud.cdata.com/api"),
-        username=os.environ["CDATA_USERNAME"],
-        password=os.environ["CDATA_PAT"],
+        base_url=base_url, username=username, password=pat
     )
     try:
         cur = conn.cursor()
@@ -67,7 +80,7 @@ def fetch_open_opportunities(cutoff: dt.date) -> list[dict]:
 
 
 def save_snapshot(today: dt.date, opps: list[dict]) -> None:
-    with psycopg.connect(os.environ["DATABASE_URL"]) as pg:
+    with psycopg.connect(_required("DATABASE_URL")) as pg:
         pg.execute(DDL)
         with pg.cursor() as cur:
             cur.executemany(
