@@ -1,0 +1,70 @@
+# CData Connect AI + Render starter
+# Deploys: an MCP-powered agent API, a scheduled SQL job, and Postgres.
+
+envVarGroups:
+  - name: connectai-shared
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      # Default Connect AI MCP endpoint (all connections the PAT can see).
+      # To scope the agent, replace with a Toolkit's "MCP Remote Server URL".
+      - key: CDATA_MCP_URL
+        value: https://mcp.cloud.cdata.com/mcp
+      - key: CDATA_API_URL
+        value: https://cloud.cdata.com/api
+      # Any "provider:model" string supported by LangChain's init_chat_model.
+      - key: LLM_MODEL
+        value: openai:gpt-4o
+
+databases:
+  - name: connectai-agent-db
+    databaseName: agent
+    user: agent
+    ipAllowList: [] # private network only; services connect internally
+
+services:
+  # ---------- Agent API ----------
+  - type: web
+    name: connectai-agent
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - fromGroup: connectai-shared
+      - key: CDATA_USERNAME # your Connect AI login email
+        sync: false
+      - key: CDATA_PAT # Connect AI Personal Access Token
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: APP_API_KEY # bearer token callers must send
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: connectai-agent-db
+          property: connectionString
+
+  # ---------- Scheduled SQL job ----------
+  - type: cron
+    name: connectai-pipeline-digest
+    runtime: python
+    schedule: "0 13 * * 1-5" # 13:00 UTC, weekdays
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m jobs.pipeline_digest
+    envVars:
+      - fromGroup: connectai-shared
+      - key: CDATA_USERNAME
+        sync: false
+      - key: CDATA_PAT
+        sync: false
+      - key: CDATA_SF_CATALOG # connection name in Connect AI
+        value: Salesforce1
+      - key: DIGEST_LOOKAHEAD_DAYS
+        value: "14"
+      - key: SLACK_WEBHOOK_URL # optional; leave blank to skip Slack
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: connectai-agent-db
+          property: connectionString
