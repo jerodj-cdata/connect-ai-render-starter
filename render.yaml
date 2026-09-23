@@ -59,7 +59,7 @@ services:
       - key: CDATA_PAT
         sync: false
       - key: CDATA_SF_CATALOG # connection name in Connect AI
-        value: Salesforce1
+        value: Salesforce
       - key: DIGEST_LOOKAHEAD_DAYS
         value: "14"
       - key: SLACK_WEBHOOK_URL # optional; leave blank to skip Slack
