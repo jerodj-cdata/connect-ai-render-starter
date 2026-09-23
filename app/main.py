@@ -3,6 +3,8 @@ import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import RedirectResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg.rows import dict_row
@@ -35,9 +37,16 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Connect AI Agent on Render", lifespan=lifespan)
 
 
-def require_api_key(request: Request) -> None:
-    expected = f"Bearer {request.app.state.settings.app_api_key}"
-    supplied = request.headers.get("authorization", "")
+# auto_error=False so a missing header returns 401, not FastAPI's default 403.
+bearer = HTTPBearer(auto_error=False, description="Paste the APP_API_KEY value")
+
+
+def require_api_key(
+    request: Request,
+    creds: HTTPAuthorizationCredentials | None = Depends(bearer),
+) -> None:
+    expected = request.app.state.settings.app_api_key
+    supplied = creds.credentials if creds else ""
     if not secrets.compare_digest(supplied, expected):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
@@ -59,6 +68,12 @@ def _text(content) -> str:
     return "".join(
         block.get("text", "") for block in content if isinstance(block, dict)
     )
+
+
+@app.get("/", include_in_schema=False)
+async def root():
+    # The bare URL 404s otherwise; send visitors to the interactive docs.
+    return RedirectResponse("/docs")
 
 
 @app.get("/healthz")
