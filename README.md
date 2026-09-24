@@ -1,6 +1,6 @@
 # CData Connect AI + Render Starter
 
-Deploy an AI agent with live, governed access to 350+ enterprise systems,
+Deploy an AI agent with live, governed access to hundreds of enterprise systems,
 plus a scheduled data job, in one click.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/jerodj-cdata/connect-ai-render-starter)
