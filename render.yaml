@@ -12,7 +12,8 @@ envVarGroups:
         value: https://mcp.cloud.cdata.com/mcp
       - key: CDATA_API_URL
         value: https://cloud.cdata.com/api
-      # Any "provider:model" string supported by LangChain's init_chat_model.
+      # "provider:model". openai and anthropic are installed; set the matching
+      # key on the web service (e.g. anthropic:claude-sonnet-5 + ANTHROPIC_API_KEY).
       - key: LLM_MODEL
         value: openai:gpt-4o
 
@@ -36,7 +37,10 @@ services:
         sync: false
       - key: CDATA_PAT # Connect AI Personal Access Token
         sync: false
+      # Fill in the key for the provider LLM_MODEL names; leave the other blank.
       - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
         sync: false
       - key: APP_API_KEY # bearer token callers must send
         generateValue: true
@@ -45,7 +49,9 @@ services:
           name: connectai-agent-db
           property: connectionString
 
-  # ---------- Scheduled SQL job ----------
+  # ---------- Scheduled SQL job (optional Salesforce example) ----------
+  # The agent does not need this. Delete this service if you don't use
+  # Salesforce, or edit jobs/pipeline_digest.py to query another source.
   - type: cron
     name: connectai-pipeline-digest
     runtime: python
@@ -58,8 +64,11 @@ services:
         sync: false
       - key: CDATA_PAT
         sync: false
-      - key: CDATA_SF_CATALOG # connection name in Connect AI
-        value: Salesforce
+      # Your Salesforce connection's name in Connect AI. Salesforce1 is the
+      # default name; if yours differs, change it on this service's
+      # Environment tab after deploying.
+      - key: CDATA_SF_CATALOG
+        value: Salesforce1
       - key: DIGEST_LOOKAHEAD_DAYS
         value: "14"
       - key: SLACK_WEBHOOK_URL # optional; leave blank to skip Slack

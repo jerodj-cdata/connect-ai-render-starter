@@ -2,6 +2,11 @@
 
 Reads open opportunities live through CData Connect AI (no ETL), saves a
 snapshot to Render Postgres, and optionally posts a summary to Slack.
+
+This job is an optional example of the SQL path into Connect AI. The agent does
+not depend on it. To use another source, change QUERY to any table your
+Connect AI connections expose; to skip it, delete the cron service from
+render.yaml.
 """
 import datetime as dt
 import logging
@@ -16,6 +21,7 @@ import requests
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger("pipeline_digest")
 
+
 def _required(name: str) -> str:
     # Strip like app/config.py does: a PAT pasted into Render with a trailing
     # newline authenticates in the web service but 401s here otherwise.
@@ -25,10 +31,13 @@ def _required(name: str) -> str:
     return value
 
 
-CATALOG = os.environ.get("CDATA_SF_CATALOG", "Salesforce1").strip()
-LOOKAHEAD_DAYS = int(os.environ.get("DIGEST_LOOKAHEAD_DAYS", "14").strip())
+# Connect AI names a new Salesforce connection Salesforce1 unless you rename it.
+CATALOG = os.environ.get("CDATA_SF_CATALOG", "").strip() or "Salesforce1"
+LOOKAHEAD_DAYS = int(os.environ.get("DIGEST_LOOKAHEAD_DAYS", "14").strip() or "14")
 
-if not re.fullmatch(r"[A-Za-z0-9_]+", CATALOG):
+# Connection names often contain hyphens (e.g. Salesforce-Prod). Only "]"
+# could escape the bracketed identifier, and it is not in this set.
+if not re.fullmatch(r"[A-Za-z0-9_-]+", CATALOG):
     sys.exit(f"Invalid CDATA_SF_CATALOG: {CATALOG!r}")
 
 QUERY = f"""
@@ -60,6 +69,23 @@ ON CONFLICT (snapshot_date, opportunity_id) DO UPDATE SET
 """
 
 
+def _explain_connect_ai_error(exc: Exception) -> str:
+    text = str(exc)
+    if "401" in text or "403" in text:
+        return (
+            "Connect AI rejected the credentials, so the query never ran. Check "
+            "that CDATA_USERNAME is your Connect AI login email and CDATA_PAT is "
+            "a current Personal Access Token."
+        )
+    if "catalog" in text.lower() and "does not exist" in text.lower():
+        return (
+            f"No Connect AI connection named {CATALOG!r}. Set CDATA_SF_CATALOG to "
+            "your Salesforce connection's name, exactly as it appears under "
+            "Sources in Connect AI."
+        )
+    return f"Connect AI query failed: {text}"
+
+
 def fetch_open_opportunities(cutoff: dt.date) -> list[dict]:
     base_url = os.environ.get("CDATA_API_URL", "https://cloud.cdata.com/api").strip()
     username = _required("CDATA_USERNAME")
@@ -75,12 +101,21 @@ def fetch_open_opportunities(cutoff: dt.date) -> list[dict]:
         cur.execute(QUERY, {"cutoff": cutoff.isoformat()})
         cols = [c[0] for c in cur.description]
         return [dict(zip(cols, row)) for row in cur.fetchall()]
+    except cdata_connect_ai.Error as exc:
+        sys.exit(_explain_connect_ai_error(exc))
     finally:
         conn.close()
 
 
 def save_snapshot(today: dt.date, opps: list[dict]) -> None:
-    with psycopg.connect(_required("DATABASE_URL")) as pg:
+    try:
+        pg = psycopg.connect(_required("DATABASE_URL"), connect_timeout=10)
+    except psycopg.OperationalError as exc:
+        sys.exit(
+            f"Could not connect to Postgres ({str(exc).strip().splitlines()[-1]}). "
+            "Check DATABASE_URL; locally, start it with `docker compose up -d db`."
+        )
+    with pg:
         pg.execute(DDL)
         with pg.cursor() as cur:
             cur.executemany(
@@ -90,6 +125,7 @@ def save_snapshot(today: dt.date, opps: list[dict]) -> None:
                     for o in opps
                 ],
             )
+    log.info("Saved %d rows to pipeline_snapshot for %s", len(opps), today)
 
 
 def post_to_slack(opps: list[dict], cutoff: dt.date) -> None:
@@ -105,7 +141,12 @@ def post_to_slack(opps: list[dict], cutoff: dt.date) -> None:
     text = (
         f"*Pipeline closing by {cutoff}*: {len(opps)} open deals, ${total:,.0f} total\n{top}"
     )
-    requests.post(webhook, json={"text": text}, timeout=10).raise_for_status()
+    try:
+        requests.post(webhook, json={"text": text}, timeout=10).raise_for_status()
+    except requests.RequestException as exc:
+        # The snapshot is already saved; say so, but still fail the run.
+        sys.exit(f"Snapshot saved, but the Slack post failed: {exc}. Check SLACK_WEBHOOK_URL.")
+    log.info("Posted digest to Slack")
 
 
 def main() -> None:
