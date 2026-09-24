@@ -1,0 +1,57 @@
+# Local development stack: the agent plus Postgres, mirroring render.yaml.
+#   cp .env.example .env    # then fill in your credentials
+#   docker compose up       # chat UI at http://localhost:8000
+#   docker compose run --rm digest    # run the cron job once
+
+x-app-env: &app-env
+  # One image for both services, built once.
+  build: .
+  image: connectai-starter:dev
+  env_file: .env
+  environment:
+    # Overrides .env so the containers reach the db service, not localhost.
+    DATABASE_URL: postgresql://agent:agent@db:5432/agent
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: agent
+      POSTGRES_DB: agent
+    ports:
+      - "5432:5432" # also reachable from the host, for psql or running outside Docker
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent -d agent"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  agent:
+    <<: *app-env
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    # Mount the source and reload on change, so edits need no rebuild.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./app:/code/app
+      - ./jobs:/code/jobs
+
+  # The cron job. Not started by `docker compose up`; run it on demand.
+  digest:
+    <<: *app-env
+    profiles: [job]
+    command: python -m jobs.pipeline_digest
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./jobs:/code/jobs
+
+volumes:
+  pgdata:
