@@ -272,4 +272,6 @@ for setup and how to verify a change.
 
 ## License
 
-[MIT](LICENSE) © CData Software, Inc.
+[MIT](LICENSE) © CData Software, Inc. The CData and Render names and logos
+are trademarks of their owners and are not covered by the license; see
+[app/static/brand](app/static/brand/README.md).
