@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Connect AI documentation and support
+    url: https://docs.cloud.cdata.com
+    about: Questions about Connect AI itself, such as connections, Toolkits, and tokens.
+  - name: Report a security vulnerability
+    url: https://github.com/jerodj-cdata/connect-ai-render-starter/security/advisories/new
+    about: Report privately. Please don't open a public issue.

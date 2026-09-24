@@ -1,0 +1,4 @@
+# Requested automatically as reviewers on every pull request.
+# With branch protection's "Require review from Code Owners", one approval
+# from any of them is enough.
+* @JoeKarlsson @jerodj-cdata @Ho1yShif
