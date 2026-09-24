@@ -12,7 +12,7 @@ cited. There is no ETL or data copy: every answer is a live query through
 [CData Connect AI](https://www.cdata.com/ai/).
 
 ![The CData-branded chat page answering "What are our 5 largest open opportunities closing this quarter?" with a table of deals, the steps and SQL behind it, and three suggested follow-up questions](docs/chat-screenshot.png)
-<sub>The included chat page, shown with sample data.</sub>
+<sub>The included chat page, with opportunity names obscured.</sub>
 
 ## What you need
 
