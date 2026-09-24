@@ -49,7 +49,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      # setup-uv publishes no moving major tag, so pin the commit (v10.2.0).
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - name: Recompile and compare
         run: |
           uv pip compile requirements.in --universal --python-version 3.12 -o requirements.txt --quiet \
