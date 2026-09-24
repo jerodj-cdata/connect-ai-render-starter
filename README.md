@@ -11,7 +11,7 @@ connection, inspects the tables, writes the SQL, and answers with the source
 cited. There is no ETL or data copy: every answer is a live query through
 [CData Connect AI](https://www.cdata.com/ai/).
 
-![The chat page answering "What are our 5 largest open opportunities closing this quarter?" with a table of deals, the steps and SQL behind it, and three suggested follow-up questions](docs/chat-screenshot.png)
+![The CData-branded chat page answering "What are our 5 largest open opportunities closing this quarter?" with a table of deals, the steps and SQL behind it, and three suggested follow-up questions](docs/chat-screenshot.png)
 <sub>The included chat page, shown with sample data.</sub>
 
 ## What you need

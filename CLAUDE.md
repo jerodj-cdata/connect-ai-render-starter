@@ -25,6 +25,7 @@ setup. This file holds what neither of those makes obvious.
 | `app/errors.py` | `SetupError`, `root_cause()`, `describe_mcp_error()`, `describe_llm_error()` |
 | `app/static/index.html` | Single-file chat page; reads `/chat/stream` |
 | `app/static/vendor/` | marked + DOMPurify, copied unmodified from npm; versions, hashes and licenses in its README |
+| `app/static/brand/` | CData logos, favicon and DM fonts (from the brand kit) and Render's mark; sources and rules in its README |
 | `jobs/pipeline_digest.py` | Optional Salesforce digest over the SQL connector |
 | `render.yaml` | Blueprint; uses Render's native Python runtime |
 | `compose.yaml`, `Dockerfile`, `.dockerignore` | Local development only |
@@ -218,6 +219,25 @@ a usable list. `build_agent` returns the model as a third value for this
   already answered" rule fixed that. Expect better suggestions from larger
   models.
 
+### Branding
+
+The chat page follows the CData Brand Guidelines (Feb 2026). The kit lives in
+the internal skills repo at `../skills/assets/brand` (`PALETTE.md` has the
+colours and usage rules); `app/static/brand/README.md` records how this page
+applies them. The rules that matter when editing the page:
+
+- **Agility yellow `#FFE500` is an accent, never text**, and only ever with
+  Depth `#15151C` on it. It is on the Send button, the header rule, focus
+  rings, and dark-mode link underlines.
+- **Navy (Resolve) fills take white text.** Small secondary text is Gray 8
+  `#5E5D60` or darker on light backgrounds; never Gray 6/7.
+- **Grafier stays out of the repo** (commercially licensed). DM Sans and DM
+  Mono are OFL and vendored with their licenses.
+- **Logos are trademarks outside the MIT license**, noted in the README.
+- `test_text_contrast_meets_wcag_aa` measures 14 text/background pairs in
+  both themes; a colour change that breaks AA fails it. Mutation-checked:
+  Gray 6 text and white-on-yellow both fail it.
+
 ### Retention
 
 `retention_loop` runs at startup and daily in the web service, deleting
@@ -306,10 +326,12 @@ All verified against a live tenant, 2026-09:
 
 ## Publishing checklist
 
-- Three places hardcode `jerodj-cdata/connect-ai-render-starter`: the README's
-  Deploy button and `git clone` URL, and the security link in
-  `.github/ISSUE_TEMPLATE/config.yml`. Update all three when the repo moves to
-  the `CDataSoftware` org (`grep -rn jerodj-cdata`).
+- Several places hardcode `jerodj-cdata/connect-ai-render-starter`: the
+  README's Deploy button and `git clone` URL, the security link in
+  `.github/ISSUE_TEMPLATE/config.yml`, the chat page footer's Source and
+  Report-an-issue links, and `REPO` in `tests/test_ui.py`. Update them
+  together when the repo moves to the `CDataSoftware` org
+  (`grep -rn jerodj-cdata --exclude-dir=.venv`).
 - Enable GitHub private vulnerability reporting. `SECURITY.md` and the issue
   chooser send reports there, and the link 404s until it is on.
 - `.github/CODEOWNERS` names @JoeKarlsson, @jerodj-cdata and @Ho1yShif. Owners
