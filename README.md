@@ -5,10 +5,6 @@ plus a scheduled data job, in one click.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/jerodj-cdata/connect-ai-render-starter)
 
-> **This button does not work yet.** Render has to read `render.yaml` from the
-> repo anonymously, and this repo is private. Use **New → Blueprint** in the
-> Render dashboard instead. The button starts working once a public copy exists.
-
 This Blueprint deploys three things:
 
 - **`connectai-agent`** — a FastAPI + LangGraph agent whose tools come from
@@ -95,8 +91,9 @@ Nothing here has been run end to end yet. Test these first:
 
 ## Publishing
 
-The **Deploy to Render** button at the top needs a public repo. When this moves
-to the `CDataSoftware` org, repoint it and delete the warning note beneath it:
+The **Deploy to Render** button at the top reads `render.yaml` from this repo
+anonymously, so the repo has to stay public for it to work. When this moves to
+the `CDataSoftware` org, repoint it:
 
 ```markdown
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/CDataSoftware/connect-ai-render-starter)
