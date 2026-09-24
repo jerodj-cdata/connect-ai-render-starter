@@ -44,6 +44,14 @@ services:
         sync: false
       - key: APP_API_KEY # bearer token callers must send
         generateValue: true
+      # Conversations (which include query results) idle this many days are
+      # deleted. 0 keeps them forever.
+      - key: CONVERSATION_RETENTION_DAYS
+        value: "30"
+      # Suggest follow-up questions after each answer: one extra, small LLM
+      # call per answer. "false" turns it off.
+      - key: SUGGEST_FOLLOWUPS
+        value: "true"
       - key: DATABASE_URL
         fromDatabase:
           name: connectai-agent-db
