@@ -77,12 +77,6 @@ def _explain_connect_ai_error(exc: Exception) -> str:
             "that CDATA_USERNAME is your Connect AI login email and CDATA_PAT is "
             "a current Personal Access Token."
         )
-    if "catalog" in text.lower() and "does not exist" in text.lower():
-        return (
-            f"No Connect AI connection named {CATALOG!r}. Set CDATA_SF_CATALOG to "
-            "your Salesforce connection's name, exactly as it appears under "
-            "Sources in Connect AI."
-        )
     return f"Connect AI query failed: {text}"
 
 
@@ -99,6 +93,16 @@ def fetch_open_opportunities(cutoff: dt.date) -> list[dict]:
     try:
         cur = conn.cursor()
         cur.execute(QUERY, {"cutoff": cutoff.isoformat()})
+        if cur.description is None:
+            # Connect AI reports query errors as HTTP 200 with an "error" body,
+            # which cdata-connect-ai 1.2.0 drops: execute() returns normally
+            # with no result schema. The usual cause here is the catalog.
+            sys.exit(
+                f"Connect AI returned no result set. Most likely there is no "
+                f"connection named {CATALOG!r}: set CDATA_SF_CATALOG to your "
+                "Salesforce connection's name, exactly as it appears under "
+                "Sources in Connect AI. (The connector hides the error text.)"
+            )
         cols = [c[0] for c in cur.description]
         return [dict(zip(cols, row)) for row in cur.fetchall()]
     except cdata_connect_ai.Error as exc:
