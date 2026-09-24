@@ -150,7 +150,7 @@ def test_phone_width_has_no_horizontal_scroll(browser, open_server):
     send(page, "top deals?")
     expect(page.locator(".bot table")).to_be_visible()
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
-    assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(15, 18, 22)"
+    assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(21, 21, 28)"  # CData Depth
     context.close()
 
 
@@ -263,3 +263,105 @@ def test_suggestions_are_shown_as_text_never_html(page, open_server):
     expect(page.locator(".followups button").first).to_have_text(f"More about {hostile}")
     expect(page.locator(".followups img")).to_have_count(0)
     assert page.title() != "XSS-CHIP"
+
+
+# ---------- branding ----------
+
+REPO = "https://github.com/jerodj-cdata/connect-ai-render-starter"
+
+
+def test_logos_and_fonts_load_offline(page, open_server):
+    page.goto(open_server)
+    expect(page.locator("#chat-form")).to_be_visible()
+    page.wait_for_load_state("networkidle")
+    # Every <img> decoded (naturalWidth > 0), with the internet blocked.
+    broken = page.evaluate("""[...document.images]
+        .filter((img) => !img.complete || img.naturalWidth === 0).map((img) => img.src)""")
+    assert broken == []
+    assert page.locator("header .brand img").get_attribute("src") == "/static/brand/cdata-logotype-white.svg"
+    assert page.locator("link[rel=icon]").get_attribute("href") == "/static/brand/cdata-favicon.svg"
+    assert page.evaluate("document.fonts.ready.then(() => document.fonts.check('15px \"DM Sans\"'))")
+    fonts = page.evaluate("[...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family)")
+    assert {'"DM Sans"', '"DM Mono"'} <= set(fonts) or {"DM Sans"} <= {f.strip('"') for f in fonts}
+
+
+def test_footer_links(page, open_server):
+    page.goto(open_server)
+    links = page.eval_on_selector_all("footer a", "els => els.map((a) => [a.textContent.trim().replace(/\\s+/g, ' '), a.getAttribute('href')])")
+    assert links == [
+        ["Powered by Connect AI", "https://docs.cloud.cdata.com"],
+        ["Deployed on Render", "https://render.com/docs"],
+        ["Connect AI MCP", "https://docs.cloud.cdata.com/en/API/MCP"],
+        ["Toolkits", "https://docs.cloud.cdata.com/en/Toolkits"],
+        ["Render Blueprints", "https://render.com/docs/blueprint-spec"],
+        ["API docs", "/docs"],
+        ["Source", REPO],
+        ["Report an issue", f"{REPO}/issues"],
+    ]
+    # External links open in a new tab without handing it window.opener.
+    for a in page.locator("footer a[href^='http']").all():
+        assert a.get_attribute("target") == "_blank" and "noopener" in a.get_attribute("rel")
+
+
+def test_only_the_right_cdata_logo_shows_per_theme(browser, open_server):
+    for scheme, visible in (("light", "depth"), ("dark", "clarity")):
+        context = browser.new_context(color_scheme=scheme)
+        block_the_internet(context)
+        page = context.new_page()
+        page.goto(open_server)
+        shown = page.eval_on_selector_all(
+            "footer img.cdata", "els => els.filter((e) => e.offsetParent).map((e) => e.getAttribute('src'))")
+        assert shown == [f"/static/brand/cdata-logotype-{visible}.svg"], scheme
+        context.close()
+
+
+CONTRAST_JS = """() => {
+  const lum = (c) => {
+    const [r, g, b] = c.match(/[\\d.]+/g).slice(0, 3).map(Number).map((v) => {
+      v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const bg = (el) => {  // first opaque background up the tree
+    for (; el; el = el.parentElement) {
+      const c = getComputedStyle(el).backgroundColor;
+      if (!/rgba\\(.*, 0\\)$/.test(c) && c !== "transparent") return c;
+    }
+    return "rgb(255, 255, 255)";
+  };
+  const ratio = (el) => {
+    const a = lum(getComputedStyle(el).color), b = lum(bg(el));
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  };
+  const pick = {
+    "body text": "#intro h2", "intro text": "#intro > div:not(.chips)",
+    "header title": "header .product", "header status": "#status",
+    "header button": "#new-chat", "send button": "#send", "suggestion chip": ".chips button",
+    "footer text": ".credits a", "footer link": "footer nav a",
+    "your message": ".user", "answer": ".bot:not(.thinking)", "step label": ".trace .steps li",
+    "trace summary": ".trace summary", "follow-up chip": ".followups button",
+  };
+  return Object.fromEntries(Object.entries(pick).map(([k, sel]) => {
+    const el = document.querySelector(sel);
+    return [k, el ? Math.round(ratio(el) * 100) / 100 : null];
+  }));
+}"""
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_text_contrast_meets_wcag_aa(browser, open_server, scheme):
+    context = browser.new_context(color_scheme=scheme)
+    block_the_internet(context)
+    page = context.new_page()
+    page.goto(open_server)
+    before = page.evaluate(CONTRAST_JS)  # intro, header, footer
+    send(page, "top deals?")
+    expect(page.locator(".followups button")).to_have_count(3)
+    page.click(".trace summary")
+    after = page.evaluate(CONTRAST_JS)  # messages, trace, chips
+    context.close()
+    # Each element exists in one snapshot or the other; keep whichever measured it.
+    ratios = {k: after[k] if after[k] is not None else before[k] for k in before}
+    ratios = {k: v for k, v in ratios.items() if v is not None}
+    assert len(ratios) == 14, ratios
+    low = {k: v for k, v in ratios.items() if v < 4.5}
+    assert not low, f"{scheme}: below WCAG AA 4.5:1: {low} (all: {ratios})"
