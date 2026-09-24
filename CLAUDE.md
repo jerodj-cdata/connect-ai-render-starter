@@ -95,6 +95,16 @@ docker compose run --rm digest
   fires. Check the log for `WatchFiles detected changes` after an edit.
 - **`.env` changes** need `docker compose up` (container recreation); the
   reloader does not see them.
+- **Ports** are `AGENT_PORT` (8000) and `DB_PORT` (5432), overridable in
+  `.env`; compose reads that file for interpolation too. A local Postgres on
+  5432 is the common clash.
+- **The agent healthcheck** exists because under `--reload` a failed startup
+  leaves the container running. With it, `docker compose ps` says
+  `unhealthy` and `up --wait` exits non-zero.
+- **Timed setup (2026-09-24, fresh clone, cold caches):** clone < 1 s, first
+  `docker compose up` 20 s (pull and build), start to healthy 4 s, first
+  answer 29 s on `qwen3:14b`. Human steps (Docker, a PAT, an LLM key)
+  dominate; `.env.example` asks for exactly three values for that reason.
 - **`DATABASE_URL`**: compose overrides it to reach its `db` service; the value
   in `.env` only matters when running the app outside Docker. The agent
   service has its own `environment:` block, which *replaces* the anchor's

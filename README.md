@@ -19,8 +19,9 @@ cited. There is no ETL or data copy: every answer is a live query through
 1. **A Connect AI account** with at least one connection. In
    [Connect AI](https://cloud.cdata.com), add one under **Sources**.
 2. **A Connect AI Personal Access Token**, from **Settings** → **Access
-   Tokens**.
-3. **An LLM API key**: OpenAI or Anthropic, or your own
+   Tokens** ([how](https://docs.cloud.cdata.com/en/Settings/Personal-Access-Tokens)).
+3. **An LLM API key**: [OpenAI](https://platform.openai.com/api-keys) or
+   [Anthropic](https://platform.claude.com/settings/keys), or your own
    [OpenAI-compatible gateway](#local-models-and-llm-gateways).
 
 ## Get started
@@ -43,12 +44,13 @@ cited. There is no ETL or data copy: every answer is a live query through
 
 ### Option B: Run locally
 
-You need Docker ([no Docker on your Mac?](#no-docker-on-your-mac)).
+You need [Docker](https://docs.docker.com/get-started/get-docker/)
+([no Docker on your Mac?](#no-docker-on-your-mac)).
 
 ```bash
 git clone https://github.com/jerodj-cdata/connect-ai-render-starter.git
 cd connect-ai-render-starter
-cp .env.example .env    # then set CDATA_USERNAME, CDATA_PAT and OPENAI_API_KEY
+cp .env.example .env    # fill in the three values at the top
 docker compose up
 ```
 
@@ -56,9 +58,11 @@ Open <http://localhost:8000> and start chatting. There is no API key to enter
 locally: the agent only listens on `127.0.0.1`, so only your machine can reach
 it.
 
-Edits under `app/` reload automatically. Edits to `.env` need a
-`docker compose up` to apply. If startup fails, the log's `Startup failed:`
-line names the variable to fix.
+The first `docker compose up` takes about 20 seconds to download and build;
+later starts take a few seconds. If startup fails, the log's
+`Startup failed:` line names the variable to fix, and `docker compose ps`
+shows the agent as `unhealthy`. Edits under `app/` reload automatically;
+edits to `.env` need another `docker compose up`.
 
 ## What's in the box
 
@@ -232,6 +236,8 @@ Startup and chat errors name the variable to fix. The common ones:
 | The agent answers with placeholder or made-up data | The model is not calling its tools: the answer shows no steps. Use a stronger model. |
 | Many ✗ steps under an answer | The model is guessing at SQL and retrying. Expand the steps to see the failing queries; a stronger model, or a Toolkit with fewer tables, helps. |
 | `mcp_tools: 0` in `/healthz` | The Toolkit has no tools enabled. |
+| `port is already allocated` on `docker compose up` | Something else uses port 8000 or 5432 (often a local Postgres). Set `AGENT_PORT` or `DB_PORT` in `.env`, e.g. `DB_PORT=5433`. |
+| Agent shows `unhealthy` in `docker compose ps` | Startup failed: `docker compose logs agent` shows the `Startup failed:` line. |
 
 The agent loads its tools at startup, so a PAT revoked after a deploy shows up
 as a 502 on `/chat`. Redeploy once it is fixed.
