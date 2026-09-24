@@ -11,6 +11,10 @@ x-app-env: &app-env
   environment:
     # Overrides .env so the containers reach the db service, not localhost.
     DATABASE_URL: postgresql://agent:agent@db:5432/agent
+  extra_hosts:
+    # Lets a local LLM gateway be reached as host.docker.internal on Linux
+    # too; Docker Desktop and Colima already define it.
+    - "host.docker.internal:host-gateway"
 
 services:
   db:
@@ -20,7 +24,8 @@ services:
       POSTGRES_PASSWORD: agent
       POSTGRES_DB: agent
     ports:
-      - "5432:5432" # also reachable from the host, for psql or running outside Docker
+      # Reachable from this machine only, for psql or running the app outside Docker.
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -32,12 +37,19 @@ services:
   agent:
     <<: *app-env
     ports:
-      - "8000:8000"
+      # This machine only: with APP_API_KEY empty the API needs no key, so it
+      # must not be reachable from the rest of the network.
+      - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
     # Mount the source and reload on change, so edits need no rebuild.
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      DATABASE_URL: postgresql://agent:agent@db:5432/agent
+      # Poll for changes: file events don't cross the VM boundary on Colima
+      # (and some other Docker setups), so --reload would never fire.
+      WATCHFILES_FORCE_POLLING: "true"
     volumes:
       - ./app:/code/app
       - ./jobs:/code/jobs
