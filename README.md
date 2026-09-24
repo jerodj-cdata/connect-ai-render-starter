@@ -56,7 +56,9 @@ docker compose up         # Postgres + agent, with hot reload
 ```
 
 Open <http://localhost:8000> and enter `local-dev-key` (the `APP_API_KEY` in
-`.env`). Edits under `app/` reload automatically.
+`.env`). Edits under `app/` reload automatically. Edits to `.env` do not: run
+`docker compose up` again to apply them. If startup fails, the log says which
+variable to fix.
 
 Other commands:
 
@@ -79,6 +81,8 @@ colima start
 
 Then add `"cliPluginsExtraDirs": ["/opt/homebrew/lib/docker/cli-plugins"]` to
 `~/.docker/config.json` so `docker compose` and `docker buildx` are found.
+Colima shares only your home directory with containers by default, so keep the
+repo under `~`.
 </details>
 
 <details>
