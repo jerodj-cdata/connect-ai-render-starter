@@ -75,19 +75,32 @@ some Salesforce data lands in Render Postgres.
 
 ## Status
 
-Nothing here has been run end to end yet. Test these first:
+Deployed and tested on Render against a live Connect AI account (September
+2026):
 
-- **Toolkit URL auth.** The default MCP endpoint uses HTTP Basic auth with
-  base64 of `email:PAT`. Toolkit URLs are unconfirmed.
-- **The Salesforce query.** Verify `IsClosed = false` and the `%(cutoff)s` date
-  string behave as expected for your connection. `CloseDate` may come back as a
-  datetime string that needs trimming.
-- **Package versions.** `requirements.txt` uses minimums only. Pin exact
-  versions once it runs. Newer LangGraph releases prefer
-  `langchain.agents.create_agent` over `create_react_agent`.
-- **Plans.** No compute plans are set, so Render uses defaults. For demos, put
-  the web service on a paid plan — free instances idle out.
-- **Preview environments.** Render doesn't copy prompted secrets into previews.
+- **Agent.** Boots, loads its tools from the default MCP endpoint
+  (`https://mcp.cloud.cdata.com/mcp`), and answers questions over live data.
+  Conversation history persists in Postgres across requests.
+- **Pipeline digest.** A triggered run reads open opportunities through the
+  Python connector and writes the daily snapshot to Postgres.
+- **API docs.** `/` redirects to `/docs`, where **Authorize** takes the
+  `APP_API_KEY` value so you can call `/chat` from the browser.
+
+Not yet tested:
+
+- **Toolkit URLs.** The default endpoint uses HTTP Basic auth with base64 of
+  `email:PAT`. Whether Toolkit MCP URLs accept the same auth is unconfirmed.
+- **Slack posting.** The tested runs had no `SLACK_WEBHOOK_URL` set.
+- **Preview environments.** Render doesn't copy prompted secrets into previews,
+  so set the Connect AI credentials by hand there.
+
+Before you rely on it:
+
+- **Pin package versions.** `requirements.txt` sets minimums only. Newer
+  LangGraph releases prefer `langchain.agents.create_agent` over
+  `create_react_agent`.
+- **Pick plans.** `render.yaml` sets none, so Render uses its defaults. Put the
+  web service on a paid plan for demos, because free instances idle out.
 
 ## Publishing
 
