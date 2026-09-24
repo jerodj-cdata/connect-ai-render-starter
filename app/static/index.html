@@ -4,8 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Connect AI Agent</title>
-<script src="https://cdn.jsdelivr.net/npm/marked@18.0.14/lib/marked.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.16/dist/purify.min.js"></script>
+<!-- Vendored (see static/vendor/README.md), so the page needs no CDN. -->
+<script src="/static/vendor/marked.umd.js"></script>
+<script src="/static/vendor/purify.min.js"></script>
 <style>
   :root {
     --bg: #f6f7f9; --panel: #fff; --text: #1b1f24; --muted: #5f6b7a;
@@ -56,7 +57,26 @@
   .bot code { background: var(--code); padding: 1px 4px; border-radius: 4px; font-size: 13px; }
   .bot pre { background: var(--code); padding: 10px; border-radius: 6px; overflow-x: auto; }
   .bot pre code { padding: 0; }
-  .thinking { color: var(--muted); font-style: italic; }
+  .thinking { color: var(--muted); min-width: 240px; }
+  .thinking .elapsed { font-style: italic; }
+  .steps { list-style: none; margin: 6px 0 0; padding: 0; font-size: 14px; }
+  .steps li { padding: 2px 0 2px 22px; position: relative; color: var(--muted); }
+  .steps li::before { position: absolute; left: 0; width: 16px; text-align: center; }
+  .steps li.running::before { content: "…"; }
+  .steps li.ok::before { content: "✓"; color: #1a7f37; }
+  .steps li.failed::before { content: "✗"; color: var(--error); }
+  .steps li.running { color: var(--text); }
+  .steps pre { margin: 4px 0 2px; font-size: 12px; white-space: pre-wrap; }
+  .trace { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 6px; font-size: 13px; }
+  .trace summary { cursor: pointer; color: var(--muted); }
+  .trace summary:hover { color: var(--text); }
+  .followups { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .followups button {
+    font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+    background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px;
+  }
+  .followups button:hover { border-color: var(--accent); }
   .error { align-self: stretch; max-width: none; background: var(--error-bg); color: var(--error); border-color: transparent; }
   #intro { text-align: center; color: var(--muted); margin-top: 8vh; }
   #intro h2 { color: var(--text); font-size: 20px; margin-bottom: 4px; }
@@ -182,44 +202,169 @@ async function checkHealth() {
     const h = await res.json();
     status.textContent = `${h.mcp_tools} Connect AI tools · ${h.llm_model}`;
     status.classList.toggle("bad", h.mcp_tools === 0);
+    return h;
   } catch (err) {
     status.textContent = "Service unreachable: " + err.message;
     status.classList.add("bad");
+    return null;
   }
 }
 
+// One <li> per tool call. Labels and SQL come from the server as plain text
+// and are only ever set with textContent.
+function stepItem(step) {
+  const li = document.createElement("li");
+  li.className = "running";
+  li.dataset.id = step.id;
+  li.append(step.label);
+  if (step.sql) {
+    const pre = document.createElement("pre");
+    const code = document.createElement("code");
+    code.textContent = step.sql;
+    pre.append(code);
+    li.append(pre);
+  }
+  return li;
+}
+
+// Collapsible "how I got this" section under an answer: every step, with
+// the SQL shown inline under each query.
+function trace(steps, seconds) {
+  const queries = steps.filter((s) => s.sql).length;
+  const details = document.createElement("details");
+  details.className = "trace";
+  const summary = document.createElement("summary");
+  summary.textContent = [
+    `${steps.length} step${steps.length === 1 ? "" : "s"}`,
+    queries ? `${queries} SQL quer${queries === 1 ? "y" : "ies"}` : null,
+    `${seconds}s`,
+  ].filter(Boolean).join(" · ");
+  const list = document.createElement("ol");
+  list.className = "steps";
+  for (const s of steps) {
+    const li = stepItem(s);
+    li.className = s.ok === false ? "failed" : "ok";
+    list.append(li);
+  }
+  details.append(summary, list);
+  return details;
+}
+
+// Follow-up chips under the latest answer. Only the newest answer keeps them.
+let latestAnswer = null;
+// Each send gets a number; only the newest may re-enable the Send button. An
+// older request can still be open, waiting for its suggestions.
+let latestRequest = 0;
+
+function showFollowups(answer, items) {
+  if (answer !== latestAnswer || !items.length) return;  // a newer question was asked
+  const box = document.createElement("div");
+  box.className = "followups";
+  for (const q of items) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = q;
+    b.addEventListener("click", () => { if (!$("send").disabled) send(q); });
+    box.append(b);
+  }
+  answer.append(box);
+  box.scrollIntoView({ behavior: "smooth", block: "end" });
+}
+
 async function send(text) {
+  const request = ++latestRequest;
+  document.querySelectorAll(".followups").forEach((el) => el.remove());
+  latestAnswer = null;
   add("user", text);
-  const thinking = add("bot thinking", "Thinking…");
+  const thinking = add("bot thinking", "");
+  const elapsed = document.createElement("div");
+  elapsed.className = "elapsed";
+  const list = document.createElement("ol");
+  list.className = "steps";
+  thinking.append(elapsed, list);
   const started = Date.now();
-  const timer = setInterval(() => {
-    thinking.textContent = `Thinking… ${Math.round((Date.now() - started) / 1000)}s`;
-  }, 1000);
+  const seconds = () => Math.round((Date.now() - started) / 1000);
+  const tick = () => { elapsed.textContent = `Working… ${seconds()}s`; };
+  tick();
+  const timer = setInterval(tick, 1000);
+  const steps = [];
+  let finished = false;
+  let answer = null;
+
+  const handle = (event) => {
+    if (event.type === "start") {
+      threadId = event.thread_id;
+    } else if (event.type === "step") {
+      steps.push(event);
+      list.append(stepItem(event));
+      thinking.scrollIntoView({ block: "end" });
+    } else if (event.type === "step_done") {
+      const step = steps.find((s) => s.id === event.id);
+      if (step) step.ok = event.ok;
+      const li = list.querySelector(`li[data-id="${CSS.escape(event.id)}"]`);
+      if (li) li.className = event.ok ? "ok" : "failed";
+    } else if (event.type === "done") {
+      finished = true;
+      thinking.remove();
+      answer = add("bot", render(event.reply), { html: true });
+      if (steps.length) answer.append(trace(steps, seconds()));
+      latestAnswer = answer;
+      clearInterval(timer);
+      if (request === latestRequest) $("send").disabled = false;  // don't wait for suggestions
+    } else if (event.type === "suggestions") {
+      if (answer) showFollowups(answer, event.items);
+    } else if (event.type === "error") {
+      finished = true;
+      thinking.remove();
+      add("error", "Error: " + event.detail);
+    }
+  };
+
   $("send").disabled = true;
   try {
-    const res = await fetch("/chat", {
+    const headers = { "Content-Type": "application/json" };
+    if (apiKey) headers["Authorization"] = "Bearer " + apiKey;
+    const res = await fetch("/chat/stream", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
+      headers,
       body: JSON.stringify({ message: text, thread_id: threadId }),
     });
-    const body = await res.json().catch(() => ({}));
-    thinking.remove();
     if (res.status === 401) {
+      thinking.remove();
       store.clear(); apiKey = "";
       return showKeyForm("That API key was rejected. Paste the current APP_API_KEY.");
     }
     if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
       const detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail ?? body);
+      thinking.remove();
       return add("error", `Error ${res.status}: ${detail}`);
     }
-    threadId = body.thread_id;
-    add("bot", render(body.reply), { html: true });
+    // Newline-delimited JSON: one event per line, possibly split across chunks.
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let newline;
+      while ((newline = buffer.indexOf("\n")) >= 0) {
+        const lineText = buffer.slice(0, newline).trim();
+        buffer = buffer.slice(newline + 1);
+        if (lineText) handle(JSON.parse(lineText));
+      }
+    }
+    if (!finished) {
+      thinking.remove();
+      add("error", "The connection closed before the answer arrived. Check the service logs.");
+    }
   } catch (err) {
     thinking.remove();
     add("error", "Could not reach the service: " + err.message);
   } finally {
     clearInterval(timer);
-    $("send").disabled = false;
+    if (request === latestRequest) $("send").disabled = false;
   }
 }
 
@@ -246,9 +391,13 @@ $("message").addEventListener("keydown", (e) => {
   }
 });
 
+// Assume a key is needed until /healthz says otherwise (locally, with
+// APP_API_KEY empty, it isn't).
+let authRequired = true;
+
 document.querySelectorAll(".chips button").forEach((b) =>
   b.addEventListener("click", () => {
-    if (!apiKey) return showKeyForm();
+    if (authRequired && !apiKey) return showKeyForm();
     send(b.textContent);
   })
 );
@@ -256,8 +405,11 @@ document.querySelectorAll(".chips button").forEach((b) =>
 $("new-chat").addEventListener("click", () => location.reload());
 $("change-key").addEventListener("click", () => showKeyForm());
 
-checkHealth();
-apiKey ? showChat() : showKeyForm();
+checkHealth().then((h) => {
+  authRequired = h ? h.auth_required !== false : true;
+  $("change-key").hidden = !authRequired;
+  !authRequired || apiKey ? showChat() : showKeyForm();
+});
 </script>
 </body>
 </html>
