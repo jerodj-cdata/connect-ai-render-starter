@@ -12,9 +12,11 @@ The run of show, the questions and the traps behind this script are in `FOUNDATI
 
 ## 1. A normal agent (0:00)
 
-On screen is a working AI agent. It talks to Claude, and it queries live business data. Over the next few clicks, I'm going to change three lines of its config, and not one line of its code. When I'm done, every model call it makes will be tracked, budgeted and routed. And when it asks for a customer's Social Security number, it'll get back four X's.
+A lot of you have built something like this by now: a chat agent that calls an LLM and pulls live business data in through MCP. This one runs on LangGraph. It calls Claude with a regular Anthropic API key, and it queries a Postgres database through Connect AI. You can see that in the header: Anthropic API, a provider key, Claude Sonnet, thirteen tools.
 
-Let's start with what it looks like today. It's a chat app built on LangGraph. It calls Claude through the regular Anthropic API, and it reaches live data through Connect AI's MCP server. You can see that in the header. Anthropic API, a provider key, Claude Sonnet, thirteen tools.
+Getting an agent like this working is the easy part now. Running it inside a company is harder, because someone has to answer three questions: who pays for the tokens, which models it's allowed to use, and what data it's allowed to see.
+
+In this segment I'm going to answer all three for this agent. The whole change is three lines in its env file. It doesn't touch the code, and the app doesn't restart. First, here's what it does today.
 
 So let's ask it something real.
 
@@ -26,7 +28,7 @@ Watch the steps while it works. It finds the connection, looks at the tables, ch
 
 There we go. Five customers with real totals, and if I open the trace, there's the exact SQL it ran.
 
-This is fine on one laptop. Now picture it across a team of fifty developers. Every app has its own Anthropic key in an env file somewhere. Nobody knows what it costs until the invoice arrives. And trying a different model means a code change and a redeploy.
+That's fine on one laptop. Across a team of fifty developers, it's fifty Anthropic keys in fifty env files, nobody sees the cost until the invoice arrives, and trying a different model means a code change and a redeploy.
 
 ## 2. The swap (1:30)
 
