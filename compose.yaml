@@ -63,6 +63,9 @@ services:
     volumes:
       - ./app:/code/app
       - ./jobs:/code/jobs
+      # Lets the app watch .env and rebuild the agent when it changes, and
+      # lets the chat page's demo mode run demo/stage.py (see app/live.py).
+      - .:/workspace
 
   # The cron job. Not started by `docker compose up`; run it on demand.
   digest:

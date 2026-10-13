@@ -16,6 +16,7 @@ import openai
 from langchain_core.messages import AIMessage, ToolMessage
 
 import app.main as main
+from app import live
 from tests.conftest import TOOL_NAMES, make_settings, tool_step
 
 SQL = "SELECT Name, StageName, Amount FROM [Salesforce1].[Salesforce].[Opportunity] LIMIT 2"
@@ -64,10 +65,8 @@ class Agent:
 
 @contextlib.asynccontextmanager
 async def lifespan(app):
-    app.state.settings = make_settings(app_api_key=os.environ.get("UI_STUB_API_KEY", ""))
-    app.state.tool_names = TOOL_NAMES
-    app.state.agent = Agent()
-    app.state.llm = LLM()
+    settings = make_settings(app_api_key=os.environ.get("UI_STUB_API_KEY", ""))
+    live.publish(app, settings, Agent(), TOOL_NAMES, LLM())
     yield
 
 

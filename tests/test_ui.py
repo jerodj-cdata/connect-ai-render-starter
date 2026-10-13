@@ -100,7 +100,10 @@ def test_opens_straight_to_chat_without_a_key(page, open_server):
     expect(page.locator("#chat-form")).to_be_visible()
     expect(page.locator("#key-form")).to_be_hidden()
     expect(page.locator("#change-key")).to_be_hidden()
-    expect(page.locator("#status")).to_have_text("4 Connect AI tools · openai:gpt-4o")
+    pills = page.locator("#status .pill")
+    expect(pills).to_have_text([
+        "LLMOpenAI API · provider key", "Modelgpt-4o", "Tools4 · read-only",
+    ])
 
 
 def test_reply_renders_markdown_and_strips_scripts(page, open_server):
@@ -290,10 +293,8 @@ def test_footer_links(page, open_server):
     links = page.eval_on_selector_all("footer a", "els => els.map((a) => [a.textContent.trim().replace(/\\s+/g, ' '), a.getAttribute('href')])")
     assert links == [
         ["Powered by Connect AI", "https://docs.cloud.cdata.com"],
-        ["Deployed on Render", "https://render.com/docs"],
         ["Connect AI MCP", "https://docs.cloud.cdata.com/en/API/MCP"],
         ["Toolkits", "https://docs.cloud.cdata.com/en/Toolkits"],
-        ["Render Blueprints", "https://render.com/docs/blueprint-spec"],
         ["API docs", "/docs"],
         ["Source", REPO],
         ["Report an issue", f"{REPO}/issues"],

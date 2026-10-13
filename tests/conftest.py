@@ -8,6 +8,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
 import app.main as main
+from app import live
 from app.config import Settings
 
 # Every variable the app or the job reads. Cleared before each test so a
@@ -127,10 +128,7 @@ def make_client(monkeypatch, stub_agent, fake_llm):
     def _make(**settings_overrides):
         @contextlib.asynccontextmanager
         async def lifespan(app):
-            app.state.settings = make_settings(**settings_overrides)
-            app.state.agent = stub_agent
-            app.state.llm = fake_llm
-            app.state.tool_names = TOOL_NAMES
+            live.publish(app, make_settings(**settings_overrides), stub_agent, TOOL_NAMES, fake_llm)
             yield
 
         monkeypatch.setattr(main.app.router, "lifespan_context", lifespan)

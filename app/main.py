@@ -19,6 +19,7 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 from pydantic import BaseModel, Field
 
+from app import live
 from app.agent import build_agent
 from app.config import load_settings
 from app.errors import SetupError, describe_llm_error, describe_mcp_error
@@ -74,22 +75,19 @@ async def lifespan(app: FastAPI):
         except SetupError as exc:
             log.error("Startup failed: %s", exc)
             raise
-        app.state.settings = settings
-        app.state.agent = agent
-        app.state.tool_names = tool_names
-        app.state.llm = llm  # also used for follow-up suggestions
-        cleanup = None
+        live.publish(app, settings, agent, tool_names, llm)
+        tasks = [asyncio.create_task(live.watch_env(app, checkpointer))]
         if settings.retention_days:
-            cleanup = asyncio.create_task(
+            tasks.append(asyncio.create_task(
                 retention_loop(pool, checkpointer, settings.retention_days)
-            )
+            ))
         try:
             yield
         finally:
-            if cleanup:
-                cleanup.cancel()
+            for task in tasks:
+                task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
-                    await cleanup
+                    await task
 
 
 app = FastAPI(title="Connect AI Agent on Render", lifespan=lifespan)
@@ -156,6 +154,41 @@ async def healthz(request: Request):
     }
 
 
+@app.get("/status")
+async def status(request: Request):
+    """What the header shows, polled by the chat page. Holds no secrets."""
+    state = request.app.state
+    return {
+        **state.route,
+        "served_model": state.served_model,
+        "reloaded_at": state.reloaded_at,
+        "error": state.live_error,
+    }
+
+
+class StageRequest(BaseModel):
+    stage: str
+
+
+@app.post("/demo/stage", dependencies=[Depends(require_api_key)])
+async def demo_stage(body: StageRequest):
+    """Switch .env to a demo act (see demo/stage.py); the watcher reloads it."""
+    try:
+        diff = live.switch_stage(body.stage)
+    except (ValueError, FileNotFoundError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    return {"stage": body.stage, "diff": diff}
+
+
+def _note_served_model(request: Request, message) -> None:
+    # The model that answered, which a gateway routing rule can make differ
+    # from the one the app asked for.
+    meta = getattr(message, "response_metadata", None) or {}
+    served = meta.get("model_name") or meta.get("model")
+    if served:
+        request.app.state.served_model = served
+
+
 @app.get("/tools", dependencies=[Depends(require_api_key)])
 async def tools(request: Request):
     return {"tools": request.app.state.tool_names}
@@ -188,6 +221,7 @@ async def chat(body: ChatRequest, request: Request):
             status_code=502, detail=_describe_failure(exc, request.app.state.settings)
         ) from None
     turn = current_turn(result["messages"])  # the checkpointer returns the whole thread
+    _note_served_model(request, result["messages"][-1])
     return ChatResponse(
         thread_id=thread_id,
         reply=_text(result["messages"][-1].content),
@@ -224,6 +258,8 @@ async def chat_stream(body: ChatRequest, request: Request):
                 for update in chunk.values():
                     for msg in (update or {}).get("messages", []):
                         turn.append(msg)
+                        if isinstance(msg, AIMessage):
+                            _note_served_model(request, msg)
                         if isinstance(msg, AIMessage) and msg.tool_calls:
                             for call in msg.tool_calls:
                                 yield line({

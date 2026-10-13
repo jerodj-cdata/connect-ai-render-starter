@@ -5,8 +5,8 @@
     python demo/stage.py governed   # Act 4: gateway plus a read-only tool set
 
 Secrets come from .env.foundations (gitignored). The diff printed after each
-switch masks them, so it is safe to show on a projector. Run
-`docker compose up -d` afterwards: .env is only read when the container starts.
+switch masks them, so it is safe to show on a projector. A running app sees
+the new .env and rebuilds its agent within a second (see app/live.py).
 """
 
 import difflib
@@ -60,31 +60,44 @@ def _mask(line: str) -> str:
     return line
 
 
-def main() -> None:
-    stages = ("direct", "gateway", "governed")
-    if len(sys.argv) != 2 or sys.argv[1] not in stages:
-        sys.exit(f"usage: python demo/stage.py {{{','.join(stages)}}}")
-    if not SECRETS.exists():
-        sys.exit(f"Missing {SECRETS.name}: see demo/FOUNDATIONS.md, Setup")
+STAGES = ("direct", "gateway", "governed")
 
+
+def switch(stage: str) -> list[str]:
+    """Rewrite .env for `stage` and return the changed lines, secrets masked.
+
+    The chat page's demo mode calls this too (through the /demo/stage route),
+    so a clicker press and the command line make the same change.
+    """
+    if stage not in STAGES:
+        raise ValueError(f"unknown stage {stage!r}; use one of {', '.join(STAGES)}")
+    if not SECRETS.exists():
+        raise FileNotFoundError(f"Missing {SECRETS.name}: see demo/FOUNDATIONS.md, Setup")
     secrets = _read_env(SECRETS)
     missing = [k for k in ("CDATA_USERNAME", "CDATA_PAT", "ANTHROPIC_DIRECT_KEY",
                            "CDATA_GATEWAY_KEY") if not secrets.get(k)]
     if missing:
-        sys.exit(f"{SECRETS.name} is missing: {', '.join(missing)}")
+        raise ValueError(f"{SECRETS.name} is missing: {', '.join(missing)}")
 
     old = ENV.read_text().splitlines() if ENV.exists() else []
-    new = build(sys.argv[1], secrets)
+    new = build(stage, secrets)
+    # Same file, rewritten in place: a replaced file would not show through
+    # the container's mount.
     ENV.write_text("\n".join(new) + "\n")
-    ENV.chmod(0o600)
+    diff = difflib.unified_diff(old, new, ".env", ".env", lineterm="", n=0)
+    return [_mask(line) for line in list(diff)[2:] if not line.startswith("@@")]
 
-    diff = [
-        _mask(line)
-        for line in difflib.unified_diff(old, new, ".env", ".env", lineterm="", n=0)
-        if not line.startswith("@@")
-    ]
-    print("\n".join(diff[2:]) if diff else ".env unchanged")
-    print("\nNow run: docker compose up -d")
+
+def main() -> None:
+    if len(sys.argv) != 2 or sys.argv[1] not in STAGES:
+        sys.exit(f"usage: python demo/stage.py {{{','.join(STAGES)}}}")
+    try:
+        diff = switch(sys.argv[1])
+    except (ValueError, FileNotFoundError) as exc:
+        sys.exit(str(exc))
+    ENV.chmod(0o600)
+    print("\n".join(diff) if diff else ".env unchanged")
+    print("\nThe running app picks this up within a second (docker compose up -d if it isn't running).")
 
 
 if __name__ == "__main__":

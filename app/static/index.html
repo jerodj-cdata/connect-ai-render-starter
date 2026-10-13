@@ -64,8 +64,24 @@
     font-weight: 600; font-size: 16px; padding-left: 14px;
     border-left: 1px solid var(--header-line); white-space: nowrap;
   }
-  #status { font-size: 13px; color: var(--header-muted); flex: 1; }
+  #status { font-size: 13px; color: var(--header-muted); flex: 1; display: flex; flex-wrap: wrap; gap: 6px; }
   #status.bad { color: #FFB4AB; }
+  /* Live config pills, polled from /status: they change as .env changes. */
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+    border: 1px solid var(--header-line); border-radius: 999px; padding: 2px 10px;
+    color: var(--header-text);
+  }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--header-muted); }
+  .pill.on::before { background: var(--agility); }
+  .pill.bad { color: #FFB4AB; border-color: #FFB4AB; }
+  .pill .k { color: var(--header-muted); }
+  .pill.flash { animation: flash 2.4s ease-out; }
+  @keyframes flash {
+    0%, 30% { background: var(--agility); color: var(--depth); border-color: var(--agility); }
+    100% { background: transparent; }
+  }
+  @media (prefers-reduced-motion: reduce) { .pill.flash { animation: none; outline: 2px solid var(--agility); } }
   header button {
     font: inherit; font-size: 13px; color: var(--header-text); background: none;
     border: 1px solid var(--header-line); border-radius: 6px; padding: 4px 12px; cursor: pointer;
@@ -146,13 +162,10 @@
   .credits a { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); text-decoration: none; }
   .credits a:hover { color: var(--text); }
   .credits .cdata { height: 11px; width: auto; }
-  .credits .render { height: 16px; width: 16px; border-radius: 3px; }
   .credits .logo-dark { display: none; }
   @media (prefers-color-scheme: dark) {
     .credits .logo-light { display: none; }
     .credits .logo-dark { display: inline; }
-    /* Render's mark is a black square: outline it so it reads on Depth. */
-    .credits .render { box-shadow: 0 0 0 1px var(--border); }
   }
   footer nav { display: flex; flex-wrap: wrap; gap: 4px 14px; }
   footer nav a { color: var(--link); }
@@ -219,16 +232,10 @@
         <img class="cdata logo-dark" src="/static/brand/cdata-logotype-clarity.svg" alt="CData">
         Connect AI
       </a>
-      <a href="https://render.com/docs" target="_blank" rel="noopener">
-        Deployed on
-        <img class="render" src="/static/brand/render-mark.svg" alt="">
-        Render
-      </a>
     </div>
     <nav aria-label="Resources">
       <a href="https://docs.cloud.cdata.com/en/API/MCP" target="_blank" rel="noopener">Connect AI MCP</a>
       <a href="https://docs.cloud.cdata.com/en/Toolkits" target="_blank" rel="noopener">Toolkits</a>
-      <a href="https://render.com/docs/blueprint-spec" target="_blank" rel="noopener">Render Blueprints</a>
       <a href="/docs" target="_blank">API docs</a>
       <a href="https://github.com/jerodj-cdata/connect-ai-render-starter" target="_blank" rel="noopener">Source</a>
       <a href="https://github.com/jerodj-cdata/connect-ai-render-starter/issues" target="_blank" rel="noopener">Report an issue</a>
@@ -289,7 +296,6 @@ async function checkHealth() {
     const res = await fetch("/healthz");
     if (!res.ok) throw new Error("HTTP " + res.status);
     const h = await res.json();
-    status.textContent = `${h.mcp_tools} Connect AI tools · ${h.llm_model}`;
     status.classList.toggle("bad", h.mcp_tools === 0);
     return h;
   } catch (err) {
@@ -298,6 +304,48 @@ async function checkHealth() {
     return null;
   }
 }
+
+// Header pills: where model calls go, which model answered, what the agent can
+// touch. Polled, so a change to .env (or a gateway routing rule) shows up here
+// without a reload; a pill flashes when its text changes.
+const pills = {};
+function setPill(key, label, value, cls = "") {
+  let el = pills[key];
+  const fresh = !el;
+  if (fresh) {
+    if (!Object.keys(pills).length) $("status").textContent = "";
+    el = pills[key] = document.createElement("span");
+    el.innerHTML = '<span class="k"></span><span class="v"></span>';
+    $("status").appendChild(el);
+  }
+  el.className = "pill " + cls;
+  el.querySelector(".k").textContent = label;
+  const v = el.querySelector(".v");
+  if (v.textContent !== value) {
+    v.textContent = value;
+    if (!fresh) {
+      el.classList.remove("flash");
+      void el.offsetWidth;  // restart the animation
+      el.classList.add("flash");
+    }
+  }
+}
+
+async function pollStatus() {
+  try {
+    const res = await fetch("/status");
+    if (!res.ok) return;
+    const s = await res.json();
+    setPill("via", "LLM", `${s.via} · ${s.key_kind}`, s.gateway ? "on" : "");
+    const served = s.served_model && s.served_model !== s.model ? ` → served ${s.served_model}` : "";
+    setPill("model", "Model", s.model + served);
+    setPill("tools", "Tools", `${s.tools} · ${s.read_only ? "read-only" : "read and write"}`, s.read_only ? "on" : "");
+    if (s.error) setPill("error", "Reload", "failed, see logs", "bad");
+    else if (pills.error) { pills.error.remove(); delete pills.error; }
+  } catch { /* checkHealth reports an unreachable service */ }
+}
+pollStatus();
+setInterval(pollStatus, 1500);
 
 // One <li> per tool call. Labels and SQL come from the server as plain text
 // and are only ever set with textContent.
@@ -499,6 +547,14 @@ checkHealth().then((h) => {
   $("change-key").hidden = !authRequired;
   !authRequired || apiKey ? showChat() : showKeyForm();
 });
+</script>
+<!-- Presenter mode for the Foundations demo: open /?demo (see demo/SCRIPT.md). -->
+<script>
+if (new URLSearchParams(location.search).has("demo")) {
+  const s = document.createElement("script");
+  s.src = "/static/demo.js";
+  document.body.appendChild(s);
+}
 </script>
 </body>
 </html>
