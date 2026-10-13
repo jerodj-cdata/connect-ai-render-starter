@@ -12,7 +12,8 @@ I ran everything below end to end on 2026-10-13 against the Tech Evangelism work
    - Routing rule `FoundationsDemoRule`, Priority Failover: `claude-sonnet-5-5` then `claude-haiku-5-5`, prompt enrichment off.
    - Project `FoundationsDemo`: $25/month hard limit, uses that rule. Its virtual key is the demo's `ANTHROPIC_API_KEY` in gateway mode.
 2. Put the secrets in `.env.foundations` (gitignored): `CDATA_USERNAME`, `CDATA_PAT` (a Tech Evangelism PAT), `ANTHROPIC_DIRECT_KEY`, `CDATA_GATEWAY_KEY` (the `cgw_sk_` virtual key).
-3. Switch acts with `python demo/stage.py direct|gateway|governed`, then `docker compose up -d`. The script rewrites `.env` and prints the diff with secrets masked, so the diff is safe to put on screen.
+3. Start the app once with `docker compose up -d` and open `http://localhost:8000/?demo`. From then on nothing restarts: the app watches `.env` and rebuilds its agent within about 1.5 s of a change (`app/live.py`), and the header pills show the live route, model and tool scope, flashing when they change.
+4. Drive it with a presenter clicker. In demo mode each Page Down runs the next step (switch `.env`, or type and send a question), Home resets to the direct act, and End hides the step hint. The spoken script with its click cues is `SCRIPT.md`. Without the clicker, `python demo/stage.py direct|gateway|governed` makes the same `.env` switch from a terminal and prints the diff with secrets masked.
 
 The data is the `PostgreSQLPII` connection: about 100k synthetic customers plus transactions, built for PII testing. Every customer is fake, so nothing on screen is real.
 
@@ -20,11 +21,11 @@ The data is the `PostgreSQLPII` connection: about 100k synthetic customers plus 
 
 | Time | Act | What you do | What the audience sees |
 |---|---|---|---|
-| 0:00 | 1. A normal agent | `stage.py direct`. Ask Q1 in the chat page. | A LangGraph agent on the plain Anthropic API, answering from live data through Connect AI MCP, with its SQL expandable. About 30 to 40 s. |
-| 1:30 | 2. The swap | `stage.py gateway`, show the diff, `docker compose up -d`, ask Q1 again. | The diff is two lines: `+ANTHROPIC_BASE_URL=https://cloud.cdata.com/gateway/v1` and the key changing from `sk-ant-…` to `cgw_sk_…`. Same answer from the same code. |
+| 0:00 | 1. A normal agent | Click: ask Q1. | A LangGraph agent on the plain Anthropic API, answering from live data through Connect AI MCP, with its SQL expandable. About 30 to 40 s. |
+| 1:30 | 2. The swap | Click: switch to `gateway` (diff card appears, LLM pill flashes). Click: ask Q1 again. | The diff is two lines: `+ANTHROPIC_BASE_URL=https://cloud.cdata.com/gateway/v1` and the key changing from `sk-ant-…` to `cgw_sk_…`. Same answer from the same code. |
 | 2:30 | 3. What you got | Open Logs → LLM Logs, expand a row. Then Routing → Projects → FoundationsDemo. | Every model call the agent made, with tokens, cost, user, project, and **Model Requested vs Model Served**. The project shows spend against its $25 cap. |
 | 3:30 | 3b. Change models without a deploy (optional) | Edit `FoundationsDemoRule`: put Haiku first. Ask Q1 again. | The request still names Sonnet, and LLM Logs shows Haiku served it, faster and about 20x cheaper. Put Sonnet back afterwards. |
-| 4:30 | 4. Governed access | `stage.py governed`, `docker compose up -d`. Ask Q2, then Q3. | Q2: the SSN and card come back as `XXXX`, and the model itself says it can't tell where the masking happened. Open Data Security: the SSN and card rules did it, in the platform. Q3: the agent can't delete anything. It has six read-only tools, and the connection is Select-only. |
+| 4:30 | 4. Governed access | Click: switch to `governed` (Tools pill flips to 6, read-only). Click: Q2. Click: open Data Security. Click: Q3. | Q2: the SSN and card come back as `XXXX`, and the model itself says it can't tell where the masking happened. Open Data Security: the SSN and card rules did it, in the platform. Q3: the agent can't delete anything. It has six read-only tools, and the connection is Select-only. |
 | 7:00 | Close | | Models and tools go through one gateway with hundreds of connectors behind it, and policy reaches the row. |
 
 ### The questions
@@ -53,6 +54,7 @@ Asked casually ("pull up the SSN for Michael Johnson"), the agent finds the data
 
 - **Show the MCP Gateway too.** Create a Tool Server for this demo and point `CDATA_MCP_URL` at its URL, so MCP Logs lights up and the demo covers both gateways. Check whether `?ops=` works on Tool Server URLs; the console's own tool selection is "coming soon".
 - **Prompt enrichment and Cost Optimization.** Two console toggles (on the rule, and on the project) that change model behavior with no redeploy. Candidates for act 3b if they make a visible difference.
-- **Latency.** Answers take 15 to 40 s. Use the streaming chat page so the steps show live, and keep talking over it.
+- **Latency.** Answers take 15 to 40 s. The streaming page shows the steps live, and `SCRIPT.md` has lines to cover the waits.
+- **Deep links into the console.** The clicker opens `/logs` and `/data-security`, but the LLM Logs tab is one manual click: the console has no URL for it.
 - **Rehearsal backup.** Record a clean run of every act in case the venue network fails.
 - **Cleanup after the talk.** Delete the `FoundationsDemo` project, `FoundationsDemoRule`, and the virtual key, and revoke the Tech Evangelism PAT and Anthropic key used here.
