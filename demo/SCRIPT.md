@@ -12,7 +12,7 @@ The run of show, the questions and the traps behind this script are in `FOUNDATI
 
 ## 1. A normal agent (0:00)
 
-This is the kind of AI agent a lot of you are building: a model, a set of MCP tools, and a LangGraph loop that decides which tool to call next. I put a chat window on it so you can watch it work, but the same setup runs behind Slack bots, scheduled jobs and internal tools. For its data, it already uses Connect AI. It queries a live Postgres database through Connect AI's MCP server, with thirteen tools, and some of those tools can write. For the model, it calls Claude directly with an Anthropic API key. You can see both halves in the header.
+This is the kind of AI agent a lot of you have been building: a model, a set of MCP tools, and a LangGraph loop that decides which tool to call next. I put a chat window on it so you can watch it work, but the same setup runs behind Slack bots, scheduled jobs and internal tools. For its data, it already uses Connect AI. It queries a live Postgres database through Connect AI's MCP server, with thirteen tools, and some of those tools can write. For the model, it calls Claude directly with an Anthropic API key. You can see both halves in the header.
 
 Plenty of teams run agents this way, and it leaves two gaps. The model calls go straight to Anthropic, so nobody sees the cost until the invoice arrives, nothing caps it, and whatever model name is in the code is the one that runs. And on the data side, the agent can read and change anything that connection allows.
 
@@ -22,11 +22,11 @@ So let's ask it something real.
 
 **[CLICK]** *(types and sends the top-customers question)*
 
-Watch the steps while it works. It finds the connection, looks at the tables, checks the columns, and then writes SQL against a live Postgres database. The data stays where it is. Nothing gets copied into a warehouse first.
+Watch the steps while it works. It finds the connection, looks at the tables, checks the columns, and then writes SQL against a live Postgres database. The data stays in Postgres, and the agent doesn't copy it into a warehouse first.
 
-*(Wait for the table. Top row: Michael Johnson, Bristol, 7,461.)*
+*(Wait for the table. Top row is Michael Johnson, Bristol, 7,461.)*
 
-There we go. Five customers with real totals, and if I open the trace, there's the exact SQL it ran.
+There we go. The top customers with real totals, and if I open the trace, there's the exact SQL it ran.
 
 That's fine on one laptop. Across a team of fifty developers, it's fifty Anthropic keys in fifty env files, nobody sees the cost until the invoice arrives, and trying a different model means a code change and a redeploy.
 
@@ -44,7 +44,7 @@ Same question.
 
 **[CLICK]** *(asks the top-customers question again)*
 
-*(While it runs.)* The app makes exactly the same calls it made a minute ago. They just go through the gateway now. When I measured it, the gateway added about two tenths of a second to a small call.
+*(While it runs.)* The app makes exactly the same calls it made a minute ago. This time they go through the gateway. When I measured it, the gateway added about two tenths of a second to a small call.
 
 *(Wait for the table.)*
 
@@ -56,13 +56,13 @@ Same answer, same Michael Johnson. So what did those two lines get us?
 
 *(Click the **LLM Logs** tab. Expand the newest row.)*
 
-Every model call that agent made is here. Tokens, cost, and latency for each one. And each call is attributed to a user and to a project. This project has a twenty-five dollar monthly budget with a hard limit, so once it reaches twenty-five dollars, the gateway blocks new requests. Every response also carries headers with the budget used and remaining, so your app can see it coming.
+Every model call that agent made is here. Tokens, cost, and latency for each one. And the log ties each call to a user and to a project. This project has a twenty-five dollar monthly budget with a hard limit, so once it reaches twenty-five dollars, the gateway blocks new requests. Every response also includes headers with the budget used and remaining, so your app can see it coming.
 
-Now look at these two fields. Model requested, and model served. They can differ, because the routing rule on the gateway picks the model, not the app. I tested this. I asked for Opus, for Gemini, for GPT-4o, and for a model name I made up. Sonnet answered every time, because that's what the rule says. So the model name in your code becomes a label, and the platform team can change models or add a fallback without anybody redeploying.
+Now look at these two fields. Model requested, and model served. They can differ, because the routing rule on the gateway picks the model, not the app. I tested this. I asked for Opus, Gemini, GPT-4o and a model name I made up. Sonnet answered every time, because the rule sends everything to Sonnet. So the model name in your code becomes a label, and the platform team can change models or add a fallback without anybody redeploying.
 
 *(Optional, if you're ahead on time: edit FoundationsDemoRule, move Haiku to the top, save, and ask a follow-up in the app. The Model pill shows "served claude-haiku-5-5." Put Sonnet back afterwards.)*
 
-Plenty of gateways do this part, and routing, logs and budgets are becoming standard. The part I think matters more is what the agent is allowed to touch.
+Plenty of gateways do this part, and routing, logs and budgets are becoming standard. The part I think matters more is what the agent can touch.
 
 ## 4. Governed access (4:15)
 
@@ -72,11 +72,11 @@ Model calls are half the problem. The other half is data. This agent has thirtee
 
 **[CLICK]** *(the diff shows the new CDATA_MCP_URL line; the Tools pill flips to "6 · read-only")*
 
-That's one more line. It's the same MCP endpoint, scoped down to six read-only tools, so insert, update and stored procedures are gone. And the app stayed up the whole time.
+That's one more line. It's the same MCP endpoint, scoped down to six read-only tools, so the agent can no longer insert, update or run stored procedures. And the app stayed up the whole time.
 
-Now for sensitive data. This Postgres database holds synthetic customer records, with names, Social Security numbers and card numbers. The people are fake, but the data is formatted like the real thing.
+Now for sensitive data. This Postgres database holds synthetic customer records, with names, Social Security numbers and card numbers. The people are fake, but the values use the same formats as the real thing.
 
-One thing I found while building this. If you ask the agent casually for someone's SSN, it refuses on its own. It finds a policy table in the database and decides to follow it. That's the model choosing to be careful, and you can't count on that. So I'm going to play a compliance admin and tell it to run the query directly, which tests the platform instead.
+One thing I found while building this. If you ask the agent casually for someone's SSN, it refuses on its own. It finds a policy table in the database and follows it. That's the model choosing to be careful, and you can't count on that. So I'm going to play a compliance admin and tell it to run the query directly, which tests the platform instead.
 
 **[CLICK]** *(types and sends the masking audit)*
 
@@ -86,7 +86,7 @@ One thing I found while building this. If you ask the agent casually for someone
 
 Four X's, for both of them. The agent ran the query, and the values came back masked.
 
-*(If the answer says it can't tell where the masking happened, point at that line. It usually does, but it's model output, so it can vary.)*
+*(If the answer says it can't tell where the masking happened, point at that line. Most runs say so, but it's model output, so it can vary.)*
 
 From the model's side, the data simply came back that way.
 
@@ -94,7 +94,7 @@ From the model's side, the data simply came back that way.
 
 *(Switch to that tab.)*
 
-This is where the masking happened: Data Security in Connect AI. Card numbers and SSNs get redacted in query results. And the database stores the real values. I checked, and zero rows actually contain X's. These rules run on every query result, from every agent, whichever model is on the other end.
+The masking happened here, in Connect AI's Data Security settings. Card numbers and SSNs get redacted in query results. And the database stores the real values. I checked, and zero rows actually contain X's. These rules run on every query result, from every agent, whichever model is on the other end.
 
 This covers what comes out of your data. It doesn't scrub what someone types into a prompt. When I typed a test card number into the chat, it went straight through to the model.
 
