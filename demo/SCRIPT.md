@@ -12,11 +12,11 @@ The run of show, the questions and the traps behind this script are in `FOUNDATI
 
 ## 1. A normal agent (0:00)
 
-A lot of you have built something like this by now: a chat agent that calls an LLM and pulls live business data in through MCP. This one runs on LangGraph. It calls Claude with a regular Anthropic API key, and it queries a Postgres database through Connect AI. You can see that in the header: Anthropic API, a provider key, Claude Sonnet, thirteen tools.
+This is the kind of AI agent a lot of you have built by now, a chat app on LangGraph. For its data, it already uses Connect AI. It queries a live Postgres database through Connect AI's MCP server, with thirteen tools, and some of those tools can write. For the model, it calls Claude directly with an Anthropic API key. You can see both halves in the header.
 
-Getting an agent like this working is the easy part now. Running it inside a company is harder, because someone has to answer three questions: who pays for the tokens, which models it's allowed to use, and what data it's allowed to see.
+Plenty of teams run agents this way, and it leaves two gaps. The model calls go straight to Anthropic, so nobody sees the cost until the invoice arrives, nothing caps it, and whatever model name is in the code is the one that runs. And on the data side, the agent can read and change anything that connection allows.
 
-In this segment I'm going to answer all three for this agent. The whole change is three lines in its env file. It doesn't touch the code, and the app doesn't restart. First, here's what it does today.
+In this segment I'm going to close both gaps with three lines in the env file. It doesn't touch the code, and the app doesn't restart. First, here's what it does today.
 
 So let's ask it something real.
 
