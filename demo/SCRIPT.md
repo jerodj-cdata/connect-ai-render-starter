@@ -12,7 +12,7 @@ The run of show, the questions and the traps behind this script are in `FOUNDATI
 
 ## 1. A normal agent (0:00)
 
-This is the kind of AI agent a lot of you have built by now, a chat app on LangGraph. For its data, it already uses Connect AI. It queries a live Postgres database through Connect AI's MCP server, with thirteen tools, and some of those tools can write. For the model, it calls Claude directly with an Anthropic API key. You can see both halves in the header.
+This is the kind of AI agent a lot of you are building: a model, a set of MCP tools, and a LangGraph loop that decides which tool to call next. I put a chat window on it so you can watch it work, but the same setup sits behind Slack bots, scheduled jobs and internal tools. For its data, it already uses Connect AI. It queries a live Postgres database through Connect AI's MCP server, with thirteen tools, and some of those tools can write. For the model, it calls Claude directly with an Anthropic API key. You can see both halves in the header.
 
 Plenty of teams run agents this way, and it leaves two gaps. The model calls go straight to Anthropic, so nobody sees the cost until the invoice arrives, nothing caps it, and whatever model name is in the code is the one that runs. And on the data side, the agent can read and change anything that connection allows.
 
