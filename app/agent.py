@@ -95,8 +95,11 @@ async def build_agent(settings: Settings, checkpointer):
             settings.cdata_mcp_url,
         )
 
+    # Current Claude models reject `temperature` with a 400, so only pin it for
+    # other providers.
+    model_kwargs = {} if settings.llm_provider == "anthropic" else {"temperature": 0}
     try:
-        llm = init_chat_model(settings.llm_model, temperature=0)
+        llm = init_chat_model(settings.llm_model, **model_kwargs)
     except ImportError as exc:
         # The message names the pip package to install.
         raise SetupError(
