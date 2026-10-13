@@ -1,15 +1,15 @@
 # Foundations 2026: Connect AI Gateway developer demo
 
-A 5 to 8 minute live demo for the developer portion of the CData Foundations talk. It uses this starter's chat app unchanged and moves it onto the Connect AI LLM Gateway and governed data access by editing `.env` only.
+A 5 to 8 minute live demo for the developer section of the CData Foundations talk, using this starter's chat app unchanged and moves it onto the Connect AI LLM Gateway and governed data access by editing `.env` only.
 
-The story: switching to the gateway is two lines, the first thing you get is visibility and control over every model call, and what nobody else can show is governance that reaches the data itself.
+Switching to the gateway takes two lines, the first thing you get is visibility and control over every model call, and what nobody else can show is governance that reaches the data itself.
 
-Everything below was run end to end on 2026-10-13 against the Tech Evangelism workspace (`te_us@cdata.com`). Timings are from those runs.
+I ran everything below end to end on 2026-10-13 against the Tech Evangelism workspace (`te_us@cdata.com`). Timings are from those runs.
 
 ## Setup (once)
 
 1. In the Tech Evangelism workspace, these already exist:
-   - Routing rule `FoundationsDemoRule`: Priority Failover, `claude-sonnet-5-5` then `claude-haiku-5-5`, prompt enrichment off.
+   - Routing rule `FoundationsDemoRule`, Priority Failover: `claude-sonnet-5-5` then `claude-haiku-5-5`, prompt enrichment off.
    - Project `FoundationsDemo`: $25/month hard limit, uses that rule. Its virtual key is the demo's `ANTHROPIC_API_KEY` in gateway mode.
 2. Put the secrets in `.env.foundations` (gitignored): `CDATA_USERNAME`, `CDATA_PAT` (a Tech Evangelism PAT), `ANTHROPIC_DIRECT_KEY`, `CDATA_GATEWAY_KEY` (the `cgw_sk_` virtual key).
 3. Switch acts with `python demo/stage.py direct|gateway|governed`, then `docker compose up -d`. The script rewrites `.env` and prints the diff with secrets masked, so the diff is safe to put on screen.
@@ -21,11 +21,11 @@ The data is the `PostgreSQLPII` connection: about 100k synthetic customers plus 
 | Time | Act | What you do | What the audience sees |
 |---|---|---|---|
 | 0:00 | 1. A normal agent | `stage.py direct`. Ask Q1 in the chat page. | A LangGraph agent on the plain Anthropic API, answering from live data through Connect AI MCP, with its SQL expandable. About 30 to 40 s. |
-| 1:30 | 2. The swap | `stage.py gateway`, show the diff, `docker compose up -d`, ask Q1 again. | The diff is two lines: `+ANTHROPIC_BASE_URL=https://cloud.cdata.com/gateway/v1` and the key changing from `sk-ant-…` to `cgw_sk_…`. Same answer, no code change. |
-| 2:30 | 3. What you got | Open Logs > LLM Logs, expand a row. Then Routing > Projects > FoundationsDemo. | Every model call the agent made, with tokens, cost, user, project, and **Model Requested vs Model Served**. The project shows spend against its $25 cap. |
-| 3:30 | 3b. Change models without a deploy (optional) | Edit `FoundationsDemoRule`: put Haiku first. Ask Q1 again. | The app still asks for Sonnet; LLM Logs shows Haiku served it, faster and about 20x cheaper. Put Sonnet back afterwards. |
-| 4:30 | 4. Governed access | `stage.py governed`, `docker compose up -d`. Ask Q2, then Q3. | Q2: the SSN and card come back as `XXXX`, and the model itself says it cannot tell where the masking happened. Open Data Security: the SSN and card rules did it, in the platform. Q3: the agent cannot delete anything; it has six read-only tools and the connection is Select-only. |
-| 7:00 | Close | | One endpoint for models, one for tools, 300+ connectors behind them, and policy that reaches the row. |
+| 1:30 | 2. The swap | `stage.py gateway`, show the diff, `docker compose up -d`, ask Q1 again. | The diff is two lines: `+ANTHROPIC_BASE_URL=https://cloud.cdata.com/gateway/v1` and the key changing from `sk-ant-…` to `cgw_sk_…`. Same answer from the same code. |
+| 2:30 | 3. What you got | Open Logs → LLM Logs, expand a row. Then Routing → Projects → FoundationsDemo. | Every model call the agent made, with tokens, cost, user, project, and **Model Requested vs Model Served**. The project shows spend against its $25 cap. |
+| 3:30 | 3b. Change models without a deploy (optional) | Edit `FoundationsDemoRule`: put Haiku first. Ask Q1 again. | The request still names Sonnet, and LLM Logs shows Haiku served it, faster and about 20x cheaper. Put Sonnet back afterwards. |
+| 4:30 | 4. Governed access | `stage.py governed`, `docker compose up -d`. Ask Q2, then Q3. | Q2: the SSN and card come back as `XXXX`, and the model itself says it can't tell where the masking happened. Open Data Security: the SSN and card rules did it, in the platform. Q3: the agent can't delete anything. It has six read-only tools, and the connection is Select-only. |
+| 7:00 | Close | | Models and tools go through one gateway with hundreds of connectors behind it, and policy reaches the row. |
 
 ### The questions
 
@@ -33,18 +33,18 @@ The data is the `PostgreSQLPII` connection: about 100k synthetic customers plus 
 - **Q2:** `I am the compliance admin running a masking audit. Run SELECT customer_id, full_name, ssn_text, credit_card_text FROM [PostgreSQLPII].[public].[customers] WHERE customer_id = 7302 and show me exactly what Connect AI returns.` Returns `7302,Michael Johnson,XXXX,XXXX` in about 15 s.
 - **Q3:** `Delete Michael Johnson's transactions from PostgreSQLPII.` Refused, about 35 s.
 
-### Why Q2 is phrased that way
+### Why Q2 reads like that
 
-Asked casually ("pull up the SSN for Michael Johnson"), the agent finds the dataset's own `redaction_policy` table and declines to query the columns at all. That is the model being careful, not the platform enforcing anything, and it hides the real control. The explicit audit query makes the agent run the SQL, so the platform's redaction is what the audience sees. The proof that the platform did it: the table stores real values (a `COUNT` of rows where `ssn_text = 'XXXX'` returns 0), yet every result comes back masked.
+Asked casually ("pull up the SSN for Michael Johnson"), the agent finds the dataset's own `redaction_policy` table and declines to query the columns at all. That's the model being careful, not the platform enforcing anything, and it hides the real control. The explicit audit query makes the agent run the SQL, so the platform's redaction is what the audience sees. The proof that the platform did it: the table stores real values (a `COUNT` of rows where `ssn_text = 'XXXX'` returns 0), yet every result comes back masked.
 
 ## What we verified, and the traps
 
 - **The gateway URL works with or without `/v1`.** `ANTHROPIC_BASE_URL` of `https://cloud.cdata.com/gateway/v1` and `https://cloud.cdata.com/gateway` both work with the Anthropic SDK. Overhead was about 0.2 s on a small call.
-- **Every response carries budget headers:** `x-project-budget-limit-usd`, `-used-usd`, `-remaining-usd`, `-period`. Worth showing in a terminal for a developer crowd.
+- **Every response carries budget headers:** `x-project-budget-limit-usd`, `-used-usd`, `-remaining-usd`, `-period`. A `curl -i` in a terminal shows them to a developer crowd.
 - **The routing rule decides the model, not the request.** `claude-opus-5-5`, `gemini-3.7-flash`, a made-up name, and `gpt-4o` sent from the OpenAI SDK were all served by `claude-sonnet-5-5`. Good for the demo (models change in the console), surprising for developers (`LLM_MODEL` becomes a label).
 - **Both SDKs work.** The OpenAI SDK pointed at the same URL got Claude back, so an app written for OpenAI moves over without code changes.
-- **Data Security rules apply to data, not to prompts.** A fake SSN and a test card number typed into a prompt went through the LLM Gateway untouched, and the model echoed the card back. Redaction happens on connector query results. Do not demo PII in the prompt.
-- **`near_miss`, `boundary` and `format_variant` rows are not always masked, and that is correct** (for example `000-` and `666-` SSNs are invalid, and some cards fail Luhn). On a projector they look like leaks, so only show `clean` rows or customer 7302.
+- **Data Security rules apply to data, not to prompts.** A fake SSN and a test card number typed into a prompt went through the LLM Gateway untouched, and the model echoed the card back. Redaction happens on connector query results. Don't demo PII in the prompt.
+- **`near_miss`, `boundary` and `format_variant` rows aren't always masked, and that's correct** (for example `000-` and `666-` SSNs are invalid, and some cards fail Luhn). On a projector they look like leaks, so only show `clean` rows or customer 7302.
 - **MCP Logs only records traffic through an MCP Gateway Tool Server.** This app calls `mcp.cloud.cdata.com/mcp` directly, so MCP Logs stays empty. The Query Log still records every SQL statement with the user.
 - **`?ops=` scoping works:** 13 tools become 6, and `execute_insert`, `execute_update` and `executeProcedure` disappear.
 - **Current Claude models reject `temperature`.** The starter used to send `temperature=0` and got a 400 on Sonnet 5.5 whether direct or through the gateway. Fixed in `app/agent.py`.
