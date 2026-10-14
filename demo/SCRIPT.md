@@ -37,11 +37,11 @@ A Followspot script: only the part between the two `---` rules goes on the promp
 
 *[App tab, step 1 of 8, empty chat]*
 
-This is the kind of AI agent a lot of you have been building: a model, a set of MCP tools, and a LangGraph loop that decides which tool to call next. I put a chat window on it so you can watch it work, but the same setup runs behind Slack bots, scheduled jobs and internal tools. It calls Claude directly with an Anthropic API key, and it reaches a live Postgres database through an MCP server with thirteen tools, some of which can write. You can see that in the header.
+This is the kind of AI agent a lot of you have been building: a model, a set of MCP tools, and maybe a LangGraph loop that decides which tool to call next. I put a chat window on it so you can watch it work, but the same setup runs behind Slack bots, scheduled jobs and internal tools. It calls Claude directly with an Anthropic API key, and it reaches a live Postgres database through an MCP server with thirteen tools, some of which can write. You can see that in the header.
 
-Plenty of teams run agents this way, and it leaves two gaps. The model calls go straight to Anthropic, so nobody sees the cost until the invoice arrives, nothing caps it, and whatever model name is in the code is the one that runs. And on the data side, the agent can read and change anything its connection allows.
+Plenty of teams run agents this way, but it leaves two gaps. The model calls go straight to Anthropic, so nobody sees the cost until the invoice arrives, nothing caps it, and whatever model name is in the code is the one that runs. And then on the data side, the agent can read and change anything its connection allows.
 
-In this segment I'm going to close both gaps with three lines in the env file. It doesn't touch the code, and the app doesn't restart. First, here's what it does today.
+By the end of this segment, this agent will have cost tracking, a hard budget, model routing, read-only data access and masked PII. I'm not going to open the code once. The whole change is three lines in its env file. First, here's what it does today.
 
 *[DICTATE: start Handy and read the question into the chat box]*
 
@@ -61,9 +61,9 @@ So let's route the model calls through the Connect AI LLM Gateway. Here's the wh
 
 *[Press ⌥ →. The diff of .env at the repo root shows top right]*
 
-That's two lines: a base URL that points at the gateway, and a Connect AI virtual key in place of the Anthropic key. The code and the SDK stay the same. I tried this with both the Anthropic SDK and the OpenAI SDK, and neither one needed a code change.
+That's lines one and two: a base URL that points at the gateway, and a Connect AI virtual key in place of the Anthropic key. The virtual key comes from the Connect AI console. The code and the SDK stay the same. I tried this with both the Anthropic SDK and the OpenAI SDK, and neither one needed a code change.
 
-And notice I didn't restart anything. The app picked up the new config on its own. The header now says Connect AI LLM Gateway, with a virtual key.
+This demo app reloads its config live, so you can watch the header change to Connect AI LLM Gateway, with a virtual key. In your app, a restart picks it up.
 
 Same question.
 
@@ -97,7 +97,7 @@ Model calls are half the problem. The other half is data. The MCP server this ag
 
 *[Press ⌥ →. The diff shows one new .env line, and the Tools pill flips to 6, read-only]*
 
-That's one more line. It's the same Connect AI endpoint, scoped down to six read-only tools, so the agent can no longer insert, update or run stored procedures. And the app stayed up the whole time.
+That's line three. It's the same Connect AI endpoint, scoped down to six read-only tools, so the agent can no longer insert, update or run stored procedures.
 
 Now for sensitive data. This Postgres database holds synthetic customer records, with names, Social Security numbers and card numbers. The people are fake, but the values use the same formats as the real thing.
 
