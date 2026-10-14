@@ -552,7 +552,7 @@ checkHealth().then((h) => {
 <script>
 if (new URLSearchParams(location.search).has("demo")) {
   const s = document.createElement("script");
-  s.src = "/static/demo.js";
+  s.src = "/static/demo.js?t=" + Date.now();  // never a stale copy mid-rehearsal
   document.body.appendChild(s);
 }
 </script>
