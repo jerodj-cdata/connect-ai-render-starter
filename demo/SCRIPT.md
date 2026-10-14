@@ -6,13 +6,15 @@ A Followspot script: only the part between the two `---` rules goes on the promp
 
 | Key | Does |
 | --- | --- |
-| ⌥ → | Next step: sends what's in the chat box, switches the config, or opens a console page. With an empty box, it types the scripted question for you. |
+| ⌥ → | Next step: sends what's in the chat box, or opens a console page. With an empty box, it types the scripted question for you. |
 | ⌥ ← | Step back one, without running anything |
-| ⌥ R | Reset: real Anthropic key, empty chat, step 1 |
+| ⌥ R | Reset: rewrites `.env` to the starting layout, empties the chat, back to step 1 |
 | ⌥ H | Hide or show the step hint in the bottom-left corner |
 | ⌘ 1 / ⌘ 2 | App tab / console tab |
+| ⌘ Tab | Between Chrome and VS Code |
+| ⌘ / then ⌘ S | In VS Code: comment or uncomment the selected lines, then save |
 
-The steps: 1 the setup question, 2 show `.env`, 3 swap to the gateway, 4 the top-customers question, 5 open the logs, 6 read-only tools, 7 open Data Security, 8 the SSN question again, 9 the delete.
+The ⌥ → steps: 1 the setup question, 2 the top-customers question, 3 open the logs, 4 open Data Security, 5 the SSN question again, 6 the delete. The `.env` edits in between are yours, in VS Code.
 
 ## Where everything lives
 
@@ -23,7 +25,7 @@ The steps: 1 the setup question, 2 show `.env`, 3 swap to the gateway, 4 the top
 | Routing, with Projects, Virtual Keys and Routing Rules tabs | <https://cloud.cdata.com/ai-gateway/routing-rules>, or **Routing** in the console sidebar |
 | Data Security rules | <https://cloud.cdata.com/data-security>, or **Data Security** in the sidebar |
 | The config the demo edits | `.env` at the repo root, rewritten by `demo/stage.py` |
-| Your keys | `.env.foundations` at the repo root, backed up in `.env.foundations.backup`. On screen, `.env` shows a fake Anthropic key. |
+| Your keys | `.env.foundations` at the repo root, backed up in `.env.foundations.backup`. `.env` shows them for real on camera, so rotate them after recording. |
 | Starter repo | <https://github.com/jerodj-cdata/connect-ai-render-starter> |
 
 ## Before you record
@@ -32,27 +34,28 @@ The steps: 1 the setup question, 2 show `.env`, 3 swap to the gateway, 4 the top
 2. In Chrome, close every tab, then open <http://localhost:8000/?demo> so it's tab 1. The console opens as tab 2 when the script gets there.
 3. Log in to <https://cloud.cdata.com> in the same Chrome profile, Tech Evangelism workspace. Go to **Data Security**, turn off **Credit Card Number** and **US Social Security Number**, and click **Save Changes**. Close that tab.
 4. In the app, press ⌥ R, then ⌥ → with an empty chat box. The app sends the SSN question with your real key. Wait for the answer: the SSN and card number should come back in full. If they come back as XXXX, the rules are still on.
-5. Leave that answer on screen. The hint should read Demo 2/9. Press ⌥ H to hide it.
-6. Open this file in Followspot, and click into the app's chat box so the keys and Handy go there.
-7. After recording, check that both Data Security rules are on again.
+5. Leave that answer on screen. The hint should read Demo 2/6. Press ⌥ H to hide it.
+6. Open `.env` from the repo root in VS Code, scrolled so the whole file shows. The Connect AI lines are already in it, commented out. Don't edit it yet.
+7. Open this file in Followspot, and click into the app's chat box so the keys and Handy go there.
+8. After recording: check that both Data Security rules are on again, press ⌥ R to put `.env` back, and rotate the Anthropic key, the virtual key and the PAT, since all three were on screen.
 
 ---
 
-*[App tab. The unmasked SSN answer from setup is on screen. Step 2 of 9]*
+*[App tab. The unmasked SSN answer from setup is on screen. Step 2 of 6]*
 
-This is the kind of AI agent a lot of you have been building: a model, a set of MCP tools, and maybe a LangGraph loop that decides which tool to call next. I put a chat window on it so you can watch it work, but the same setup runs behind Slack bots, scheduled jobs and internal tools.
+This is the kind of AI agent a lot of you have been building: an AI model, a set of MCP tools, and maybe a LangGraph loop that decides which tool to call next. I put a chat window on it so you can watch it work, but the same setup runs behind your Slack bots, scheduled jobs and internal tools.
 
-Before we started, I asked it for one customer's records. It ran real SQL against a live Postgres database and handed back that customer's Social Security number and credit card number, in full, to the model and to me. The people in this database are fake, but the values use the same formats as the real thing, and nothing in this setup stopped it.
+Before we started, I asked my Claude agent for one customer's records. It ran a SQL query against a live Postgres database and handed back that customer's Social Security number and credit card number, in full, to the model and to me. The people in this database are fake, but the values use the same formats as the real thing, and nothing in this setup stopped it.
 
 Here's how it's wired.
 
-*[Press ⌥ →. The whole .env shows top right]*
+*[⌘ Tab to VS Code, .env at the repo root]*
 
-A raw Anthropic API key in an env file. This one's a dummy for the recording, but in a real team, every app that copied it uses the same key. Nobody can see who asked what, nothing caps the spend, the agent stops if the provider goes down, and it has thirteen tools, some of which can write.
+A raw Anthropic API key in an env file. In a real team, every app that copied it uses the same key. Nobody can see who asked what, nothing caps the spend, the agent stops if the provider goes down, and it has thirteen tools, some of which can write to the database.
 
-By the end of this segment, this agent will have cost tracking, a hard budget, model routing with a fallback, read-only data access and masked PII. I'm not going to open the code once. The whole change is three lines in the env file and two switches in the Connect AI console.
+By the end of this segment, this same AI chatbot will have cost tracking, a hard budget, model routing with a fallback, read-only data access and masked PII, and that whole change is three lines in the env file.
 
-*[Press ⌥ →. The diff shows top right]*
+*[Comment out the ANTHROPIC_API_KEY sk-ant line, uncomment the two lines under it, ⌘ S. Then ⌘ Tab to Chrome: the LLM pill flashes to Connect AI LLM Gateway]*
 
 That's lines one and two: a base URL that points at the Connect AI LLM Gateway, and a Connect AI virtual key in place of the Anthropic key. The code and the SDK stay the same. I tried this with both the Anthropic SDK and the OpenAI SDK, and neither one needed a code change. This demo app reloads its config live, so the header has already changed. In your app, a restart picks it up.
 
@@ -60,11 +63,11 @@ Let's make sure it still works.
 
 *[DICTATE: start Handy and read the question into the chat box]*
 
-Which five customers in PostgreSQL PII have the highest total transaction amount? Show their name, city and total.
+Which five customers in Postgres Q.L. PII have the highest total transaction amount? Show their name, city and total.
 
 *[Stop Handy. Press ⌥ → to send]*
 
-The agent makes the same calls it always did, and now they go through the gateway. When I measured it, the gateway added about two tenths of a second to a small call.
+The agent makes the same calls it always did, and now they go through the gateway.
 
 *[Wait for the table. Top row is Michael Johnson, Bristol, 7,461.07]*
 
@@ -92,7 +95,7 @@ Plenty of gateways do routing, logs and budgets. The part I think matters more i
 
 The MCP server this agent has used from the start comes from Connect AI, and right now it hands the agent thirteen tools, including execute insert, execute update and execute procedure.
 
-*[Press ⌥ →. The diff shows one new line. Click the Tools pill again]*
+*[⌘ Tab to VS Code. Uncomment the CDATA_MCP_URL line, ⌘ S. ⌘ Tab to Chrome, then click the Tools pill again: six, read-only]*
 
 That's line three. It's the same Connect AI endpoint, scoped down to six read-only tools, so the agent can no longer insert, update or run stored procedures.
 
@@ -155,4 +158,5 @@ Thank you.
 - **The final SSN answer isn't masked:** the rules didn't save. Check both switches and Save Changes in Data Security, then ask again.
 - **The hint shows an error:** it names the problem. A failed config switch leaves the previous agent running, so the demo keeps working on the last good setup.
 - **⌥ → does nothing:** the focus is on another tab or outside the page. Press ⌘ 1 and click into the chat box.
-- **Starting over:** turn the two rules off again, then repeat steps 4 and 5 of Before you record.
+- **Starting over:** turn the two rules off again, then repeat steps 4 and 5 of Before you record. ⌥ R also puts `.env` back, so reopen it in VS Code if it shows a changed-on-disk prompt.
+- **The pill doesn't change after a save:** check the file saved, with no dot on the VS Code tab. The app reloads within a couple of seconds of a save.

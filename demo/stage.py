@@ -1,14 +1,14 @@
 """Switch .env between the Foundations demo acts and show what changed.
 
-    python demo/stage.py prerun     # Setup only: direct, with the real Anthropic key
-    python demo/stage.py direct     # Act 1 on screen: direct, with an obviously fake key
+    python demo/stage.py direct     # Act 1: the agent calls Anthropic directly
     python demo/stage.py gateway    # Act 2: same agent, models through Connect AI
     python demo/stage.py governed   # Act 4: gateway plus a read-only tool set
 
-Secrets come from .env.foundations (gitignored). The opening answer is run
-during setup on `prerun`; the recording then shows `direct`, whose key is a
-dummy, so nothing real needs masking on screen. Every other secret is masked
-in what this prints, so it is safe to show on a projector. A running app sees
+Secrets come from .env.foundations (gitignored). Every stage writes the same
+layout: the Connect AI lines sit in the file commented out, so on camera the
+swap is commenting and uncommenting lines in VS Code. These stages set the
+file up before recording, reset it after, and do the same swap from a
+terminal. What this prints masks the secrets. A running app sees
 the new .env and rebuilds its agent within a second (see app/live.py).
 """
 
@@ -26,8 +26,6 @@ READ_ONLY_MCP = (
     "?ops=get_catalogs,get_schemas,get_tables,get_columns,get_instructions,queryData"
 )
 SECRET_VARS = {"CDATA_PAT", "ANTHROPIC_API_KEY"}
-# Shown in full on screen in place of the real key. Never valid.
-FAKE_KEY = "sk-ant-api03-NOT-A-REAL-KEY-demo-only"
 
 
 def _read_env(path: pathlib.Path) -> dict[str, str]:
@@ -40,37 +38,35 @@ def _read_env(path: pathlib.Path) -> dict[str, str]:
 
 
 def build(stage: str, s: dict[str, str]) -> list[str]:
-    lines = [
+    def on(active: bool, line: str) -> str:
+        return line if active else f"# {line}"
+
+    gateway = stage in ("gateway", "governed")
+    return [
         f"CDATA_USERNAME={s['CDATA_USERNAME']}",
         f"CDATA_PAT={s['CDATA_PAT']}",
         "LLM_MODEL=anthropic:claude-sonnet-5-5",
+        "DATABASE_URL=postgresql://agent:agent@localhost:5432/agent",
+        "",
+        on(not gateway, f"ANTHROPIC_API_KEY={s['ANTHROPIC_DIRECT_KEY']}"),
+        on(gateway, f"ANTHROPIC_BASE_URL={GATEWAY_URL}"),
+        on(gateway, f"ANTHROPIC_API_KEY={s['CDATA_GATEWAY_KEY']}"),
+        "",
+        on(stage == "governed", f"CDATA_MCP_URL={READ_ONLY_MCP}"),
     ]
-    if stage == "prerun":
-        lines.append(f"ANTHROPIC_API_KEY={s['ANTHROPIC_DIRECT_KEY']}")
-    elif stage == "direct":
-        lines.append(f"ANTHROPIC_API_KEY={FAKE_KEY}")
-    else:
-        lines += [
-            f"ANTHROPIC_BASE_URL={GATEWAY_URL}",
-            f"ANTHROPIC_API_KEY={s['CDATA_GATEWAY_KEY']}",
-        ]
-    if stage == "governed":
-        lines.append(f"CDATA_MCP_URL={READ_ONLY_MCP}")
-    lines.append("DATABASE_URL=postgresql://agent:agent@localhost:5432/agent")
-    return lines
 
 
 def _mask(line: str) -> str:
     key, _, value = line.partition("=")
-    name = key.lstrip("+- ")
-    if name not in SECRET_VARS or not value or value == FAKE_KEY:
+    name = key.lstrip("+-# ")
+    if name not in SECRET_VARS or not value:
         return line
     # Key prefixes ("sk-ant-", "cgw_sk_") say what kind of key it is and
     # nothing more; a PAT has no such prefix, so none of it is shown.
     return f"{key}=••••••••" if name == "CDATA_PAT" else f"{key}={value[:7]}…"
 
 
-STAGES = ("prerun", "direct", "gateway", "governed")
+STAGES = ("direct", "gateway", "governed")
 
 
 def show() -> list[str]:

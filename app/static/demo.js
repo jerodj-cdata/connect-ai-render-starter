@@ -3,7 +3,7 @@
 // drives the app by hand. Option-key combos work on a laptop keyboard, even
 // while dictated text sits in the chat box:
 //   ⌥→ (or Page Down, or → in an empty box) : next   ⌥← (or Page Up) : step back
-//   ⌥R (or Home) : reset to the prerun stage and a clear chat
+//   ⌥R (or Home) : reset .env to the direct stage and clear the chat
 //   ⌥H (or End) : hide or show the HUD
 // Uses the chat page's own globals: send(), threadId, apiKey, $().
 
@@ -14,17 +14,14 @@ const Q2 = "I'm the compliance admin running a masking audit. Select the custome
 const Q3 = "Delete Michael Johnson's transactions from PostgreSQL PII.";
 const CONSOLE = "https://cloud.cdata.com";
 
-// Step 1 runs during setup, with Data Security's SSN and card rules off and
-// the real Anthropic key (the "prerun" stage), so the recording opens on an
-// unmasked answer. Step 2 swaps in the fake key and shows the whole .env.
+// Step 1 runs during setup, with Data Security's SSN and card rules off, so
+// the recording opens on an unmasked answer. The .env changes between steps
+// happen on camera in VS Code; the header pills show the app picking them up.
 const STEPS = [
   { label: "Setup: ask the SSN question, rules off", ask: Q2 },
-  { label: "Show .env", env: "direct" },
-  { label: "Swap to the Connect AI gateway", stage: "gateway" },
-  { label: "Ask the top-customers question", ask: Q1 },
+  { label: "Ask the top-customers question (after the gateway edit)", ask: Q1 },
   { label: "Open the LLM logs", open: `${CONSOLE}/logs` },
-  { label: "Lock it down: read-only tools", stage: "governed" },
-  { label: "Open Data Security, turn the rules on", open: `${CONSOLE}/data-security` },
+  { label: "Open Data Security (after the read-only edit)", open: `${CONSOLE}/data-security` },
   { label: "Ask the SSN question again", ask: Q2 },
   { label: "Try to delete records", ask: Q3 },
 ];
@@ -73,7 +70,7 @@ async function stage(name) {
   return body;
 }
 
-function showDiff(lines, ms = 12000) {
+function showDiff(lines) {
   card.innerHTML = '<div class="title">.env</div><pre></pre>';
   const pre = card.querySelector("pre");
   for (const line of lines.length ? lines : ["(no change)"]) {
@@ -84,7 +81,7 @@ function showDiff(lines, ms = 12000) {
   }
   card.hidden = false;
   clearTimeout(showDiff.timer);
-  showDiff.timer = setTimeout(() => { card.hidden = true; }, ms);
+  showDiff.timer = setTimeout(() => { card.hidden = true; }, 12000);
 }
 
 // Sends what the speaker dictated into the box, or types the scripted
@@ -108,7 +105,6 @@ async function run(step) {
   card.hidden = true;
   if (step.ask) await ask(step.ask);
   else if (step.stage) showDiff((await stage(step.stage)).diff);
-  else if (step.env) showDiff((await stage(step.env)).env, 30000);
   else if (step.open) window.open(step.open, "connect-ai-console");  // reuses one tab
 }
 
@@ -131,12 +127,12 @@ async function next() {
 
 async function reset() {
   try {
-    await stage("prerun");
+    await stage("direct");
     cursor = 0;
     threadId = null;
     document.querySelectorAll("#log > .msg").forEach((el) => el.remove());
     card.hidden = true;
-    paintHud("reset: real key, empty chat");
+    paintHud("reset: direct, empty chat");
   } catch (err) {
     paintHud(err.message);
   }
