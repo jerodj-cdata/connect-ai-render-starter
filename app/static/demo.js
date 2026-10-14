@@ -24,6 +24,10 @@ const STEPS = [
   { label: "Open Data Security (after the read-only edit)", open: `${CONSOLE}/data-security` },
   { label: "Ask the SSN question again", ask: Q2 },
   { label: "Try to delete records", ask: Q3 },
+  // The agent runs as the PAT's user, so unchecking that user's Select on
+  // the connection takes the data away from the agent on the next query.
+  { label: "Open Sources (then PostgreSQLPII → Permissions)", open: `${CONSOLE}/connections` },
+  { label: "Ask the top-customers question (after unchecking Select)", ask: Q1 },
 ];
 
 let cursor = 0;

@@ -1,6 +1,6 @@
 # Foundations 2026: Connect AI Gateway developer demo
 
-A 5 to 8 minute live demo for the developer section of the CData Foundations talk, using this starter's chat app unchanged and moves it onto the Connect AI LLM Gateway and governed data access by editing `.env` only.
+A 7 to 9 minute live demo for the developer section of the CData Foundations talk, using this starter's chat app unchanged and moves it onto the Connect AI LLM Gateway and governed data access by editing `.env` only.
 
 Switching to the gateway takes two lines, the first thing you get is visibility and control over every model call, and what nobody else can show is governance that reaches the data itself.
 
@@ -26,7 +26,8 @@ The data is the `PostgreSQLPII` connection: about 100k synthetic customers plus 
 | 1:15 | 2. The swap | In VS Code, comment out the Anthropic key, uncomment the base URL and virtual key, ⌘ S. ⌘ Tab to Chrome. Dictate Q1, ⌥ →. | The LLM pill flashes to the gateway with no restart. Same answer from the same code. |
 | 2:30 | 3. What you got | ⌥ →: open Logs, then LLM Logs. In the sidebar, Routing → Routing Rules → FoundationsDemoRule, then Projects → FoundationsDemo, then Virtual Keys. | Every model call with tokens, cost, user, project, and **Model Requested vs Model Served**. Priority failover from Sonnet to Haiku. The $25 hard budget. The virtual key in place of the provider key. |
 | 4:30 | 4. Governed access | ⌘ 1, open the Tools pill. In VS Code, uncomment `CDATA_MCP_URL`, ⌘ S, back to Chrome, open the Tools pill again. ⌥ →: open Data Security, turn the two rules on, Save Changes. ⌘ 1, dictate Q2, ⌥ →. Dictate Q3, ⌥ →. | Thirteen tools become six read-only ones. Two switches, then the same question comes back `XXXX`. The agent refuses the delete, because it has no delete tool and the connection is Select-only. |
-| 7:30 | Close | | The env lines and the two switches, with hundreds of connectors behind the same gateway. |
+| 7:15 | 5. Scoped to the user | ⌥ →: open Sources, then PostgreSQLPII → Permissions. Uncheck Select on the `te_us` row, Save & Test. ⌘ 1, dictate Q1, ⌥ →. | Per-user Select, Insert, Update, Delete and Execute on the connection. With Select off, the same agent can't find PostgreSQLPII at all. |
+| 8:30 | Close | | The env lines and the two switches, with hundreds of connectors behind the same gateway. |
 
 The spoken script and every cue are in `SCRIPT.md`. This table is the summary.
 
@@ -50,6 +51,7 @@ Asked casually ("pull up the SSN for Michael Johnson"), the agent finds the data
 - **Data Security rules apply to data, not to prompts.** A fake SSN and a test card number typed into a prompt went through the LLM Gateway untouched, and the model echoed the card back. Redaction happens on connector query results. Don't demo PII in the prompt.
 - **`near_miss`, `boundary` and `format_variant` rows aren't always masked, and that's correct** (for example `000-` and `666-` SSNs are invalid, and some cards fail Luhn). On a projector they look like leaks, so only show `clean` rows or customer 7302.
 - **MCP Logs only records traffic through an MCP Gateway Tool Server.** This app calls `mcp.cloud.cdata.com/mcp` directly, so MCP Logs stays empty. The Query Log still records every SQL statement with the user.
+- **The agent's data access is the PAT user's access.** The app signs in to Connect AI as `te_us` with a PAT, not a service account. Each connection's **Permissions** tab has per-user Select, Insert, Update, Delete and Execute; every Tech Evangelism user has Select only on PostgreSQLPII. With `te_us`'s Select unchecked and saved, the next Q1 answered in about 30 s that it found no customer or transaction data, listed only `PostgreSQL1` and `PostgreSQL_Supabase`, and ran no queries; the catalog errors with `Cannot obtain connection for 'PostgreSQLPII'`. Checking Select again restored the normal answer on the next query (tested 2026-10-14). Changing that checkbox needs a person: it's a shared connection, so always turn Select back on after recording.
 - **`?ops=` scoping works:** 13 tools become 6, and `execute_insert`, `execute_update` and `executeProcedure` disappear.
 - **Current Claude models reject `temperature`.** The starter used to send `temperature=0` and got a 400 on Sonnet 5.5 whether direct or through the gateway. Fixed in `app/agent.py`.
 

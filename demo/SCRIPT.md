@@ -1,6 +1,6 @@
 # Foundations 2026 demo script
 
-A Followspot script: only the part between the two `---` rules goes on the prompter. Everything in `*[...]*` is a cue for you, shown dimmed and never listened for. Read everything else out loud, including the questions. After each question, press ⌥ → with the chat box empty, and the app types that question in and sends it. About 8 minutes. The run of show and the traps behind it are in `FOUNDATIONS.md`.
+A Followspot script: only the part between the two `---` rules goes on the prompter. Everything in `*[...]*` is a cue for you, shown dimmed and never listened for. Read everything else out loud, including the questions. After each question, press ⌥ → with the chat box empty, and the app types that question in and sends it. About 9 minutes. The run of show and the traps behind it are in `FOUNDATIONS.md`.
 
 ## Keys (in the app tab)
 
@@ -14,7 +14,7 @@ A Followspot script: only the part between the two `---` rules goes on the promp
 | ⌘ Tab | Between Chrome and VS Code |
 | ⌘ / then ⌘ S | In VS Code: comment or uncomment the selected lines, then save |
 
-The ⌥ → steps: 1 the setup question, 2 the top-customers question, 3 open the logs, 4 open Data Security, 5 the Social Security Number question again, 6 the delete. You make the `.env` edits between steps yourself, in VS Code.
+The ⌥ → steps: 1 the setup question, 2 the top-customers question, 3 open the logs, 4 open Data Security, 5 the Social Security Number question again, 6 the delete, 7 open Sources for the connection's permissions, 8 the top-customers question again. You make the `.env` edits between steps yourself, in VS Code.
 
 ## Where everything lives
 
@@ -24,6 +24,7 @@ The ⌥ → steps: 1 the setup question, 2 the top-customers question, 3 open th
 | Connect AI logs | <https://cloud.cdata.com/logs> (Query Log and LLM Logs tabs) |
 | Routing, with Projects, Virtual Keys and Routing Rules tabs | <https://cloud.cdata.com/ai-gateway/routing-rules>, or **Routing** in the console sidebar |
 | Data Security rules | <https://cloud.cdata.com/data-security>, or **Data Security** in the sidebar |
+| Connection permissions | <https://cloud.cdata.com/connections>, then **PostgreSQLPII** and the **Permissions** tab |
 | The config the demo edits | `.env` at the repo root, rewritten by `demo/stage.py` |
 | Your keys | `.env.foundations` at the repo root, backed up in `.env.foundations.backup`. `.env` shows them for real on camera, so rotate them after recording. |
 | Starter repo | <https://github.com/jerodj-cdata/connect-ai-render-starter> |
@@ -32,12 +33,12 @@ The ⌥ → steps: 1 the setup question, 2 the top-customers question, 3 open th
 
 1. Start the app with `docker compose up -d` from the repo root if it isn't running.
 2. In Chrome, close every tab, then open <http://localhost:8000/?demo> so it's tab 1. The console opens as tab 2 when the script gets there.
-3. Log in to <https://cloud.cdata.com> in the same Chrome profile, Tech Evangelism workspace. Go to **Data Security**, turn off **Credit Card Number** and **US Social Security Number**, and click **Save Changes**. Close that tab.
+3. Log in to <https://cloud.cdata.com> in the same Chrome profile, Tech Evangelism workspace. Go to **Data Security**, turn off **Credit Card Number** and **US Social Security Number**, and click **Save Changes**. Then go to **Sources**, open **PostgreSQLPII**, and on the **Permissions** tab check that the `te_us@cdata.com` row has **Select** checked. Close that tab.
 4. In the app, press ⌥ R, then ⌥ → with an empty chat box. The app sends the Social Security Number question with your real key. Wait for the answer: the Social Security Number and card number should come back in full. If they come back as XXXX, the rules are still on.
-5. Leave that answer on screen. The hint should read Demo 2/6. Press ⌥ H to hide it.
+5. Leave that answer on screen. The hint should read Demo 2/8. Press ⌥ H to hide it.
 6. Open `.env` from the repo root in VS Code, scrolled so the whole file shows. The Connect AI lines are already in it, commented out. Don't edit it yet.
 7. Open this file in Followspot, and click into the app's chat box so the keys go there.
-8. After recording: check that both Data Security rules are on again, press ⌥ R to put `.env` back, and rotate the Anthropic key, the virtual key and the PAT, since all three were on screen.
+8. After recording: check **Select** on the `te_us@cdata.com` row of PostgreSQLPII's **Permissions** tab and click **Save & Test**, since every Tech Evangelism demo uses that connection. Check that both Data Security rules are on again, press ⌥ R to put `.env` back, and rotate the Anthropic key, the virtual key and the PAT, since all three were on screen.
 
 ---
 
@@ -141,7 +142,37 @@ It has no delete tool to call. And even if it did, this user only has read acces
 
 It won't, and it can't. And every query it did run is in the Query Log, tied to the user who ran it.
 
-So, three lines of config and two switches. Two of the lines put every model call behind logging, routing and a budget. The third limited the agent to read-only tools, and the two switches masked sensitive fields for every agent, without relying on the model's good judgment. Put the control where the data is.
+That user is the part I want to stay on, because this agent doesn't connect through a shared service account that can see everything. It signs in to Connect AI as me, with my personal access token, so it gets exactly the access I have and nothing more.
+
+*[Press ⌥ →. Sources opens in tab 2. Click PostgreSQLPII, then the Permissions tab]*
+
+These are the permissions on this connection. Every user gets their own row, with select, insert, update, delete and execute. I have select only, which is the other reason that delete never stood a chance.
+
+Watch what happens when I take away my own access.
+
+*[Uncheck Select on the te_us row, then click Save & Test]*
+
+No change to the app and no change to the env file.
+
+*[⌘ 1 back to the app tab, click the chat box]*
+
+Same question I asked after the swap.
+
+*[Ask it out loud]*
+
+Which five customers in Postgres Q.L. PII have the highest total transaction amount? Show their name, city and total.
+
+*[Press ⌥ →. The question types itself and sends]*
+
+The agent goes looking for that connection, with the same tools and the same token as a minute ago.
+
+*[Wait for the answer: no customer or transaction data found, and no queries run]*
+
+It can't find it. To this agent, PostgreSQL PII doesn't exist anymore, because for me it doesn't. Give a teammate their own token, and the same agent sees only what they're allowed to see. Take a user's access away, and every agent running as that user loses it on the next query.
+
+*[Leave Select unchecked until the recording stops]*
+
+So, three lines of config and two switches. Two of the lines put every model call behind logging, routing and a budget. The third limited the agent to read-only tools, and the two switches masked sensitive fields for every agent. Underneath it all, the agent only ever gets the access of the person it runs as, without relying on the model's good judgment. Put the control where the data is.
 
 Today I showed it on Postgres. Connect AI connects to hundreds of sources, including Salesforce, NetSuite, Snowflake and SAP, so the same agent and the same gateway work against those too.
 
@@ -158,5 +189,6 @@ Thank you.
 - **The final Social Security Number answer isn't masked:** the rules didn't save. Check both switches and Save Changes in Data Security, then ask again.
 - **The hint shows an error:** it names the problem. A failed config switch leaves the previous agent running, so the demo keeps working on the last good setup.
 - **⌥ → does nothing:** the focus is on another tab or outside the page. Press ⌘ 1 and click into the chat box.
-- **Starting over:** turn the two rules off again, then repeat steps 4 and 5 of Before you record. ⌥ R also puts `.env` back, so reopen it in VS Code if it shows a changed-on-disk prompt.
+- **The last answer still shows the top customers:** the permission change didn't save. Uncheck **Select** again, click **Save & Test**, and ask again.
+- **Starting over:** check **Select** on the PostgreSQLPII permissions again, turn the two rules off again, then repeat steps 4 and 5 of Before you record. ⌥ R also puts `.env` back, so reopen it in VS Code if it shows a changed-on-disk prompt.
 - **The pill doesn't change after a save:** check the file saved, with no dot on the VS Code tab. The app reloads within a couple of seconds of a save.
