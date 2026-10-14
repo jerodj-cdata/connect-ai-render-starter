@@ -37,6 +37,7 @@ def test_describe_tools():
     assert live.describe(make_settings(), TOOL_NAMES)["read_only"] is True
     route = live.describe(make_settings(), WRITE_TOOLS)
     assert route["read_only"] is False and route["tools"] == len(WRITE_TOOLS)
+    assert route["tool_names"] == WRITE_TOOLS
 
 
 def test_apply_env_sets_and_unsets_but_leaves_pinned(monkeypatch):

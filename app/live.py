@@ -55,6 +55,7 @@ def describe(settings, tool_names) -> dict:
         "key_kind": "virtual key" if key.startswith("cgw_") else "provider key",
         "model": settings.llm_model.split(":", 1)[-1],
         "tools": len(tool_names),
+        "tool_names": list(tool_names),
         "read_only": not ({"execute_insert", "execute_update", "executeProcedure"} & set(tool_names)),
     }
 

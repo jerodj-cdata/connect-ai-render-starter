@@ -82,6 +82,17 @@
     100% { background: transparent; }
   }
   @media (prefers-reduced-motion: reduce) { .pill.flash { animation: none; outline: 2px solid var(--agility); } }
+  button.pill { cursor: pointer; }
+  button.pill::after { content: "▾"; color: var(--header-muted); font-size: 11px; }
+  /* The Tools pill's list of what the agent can call. */
+  #tool-menu {
+    position: fixed; z-index: 20; margin: 0; padding: 6px 0; list-style: none;
+    min-width: 220px; max-height: 60vh; overflow: auto; font-size: 13px;
+    background: var(--panel); color: var(--text); border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: 0 8px 30px rgba(0, 0, 0, .25);
+  }
+  #tool-menu li { display: flex; justify-content: space-between; gap: 16px; padding: 4px 14px; font-family: "DM Mono", monospace; }
+  #tool-menu .w { color: var(--muted); font-family: "DM Sans", sans-serif; }
   header button {
     font: inherit; font-size: 13px; color: var(--header-text); background: none;
     border: 1px solid var(--header-line); border-radius: 6px; padding: 4px 12px; cursor: pointer;
@@ -193,6 +204,8 @@
   <button id="new-chat" type="button">New chat</button>
   <button id="change-key" type="button">API key</button>
 </header>
+
+<ul id="tool-menu" hidden aria-label="Tools the agent can call"></ul>
 
 <main>
   <div id="log">
@@ -309,12 +322,13 @@ async function checkHealth() {
 // touch. Polled, so a change to .env (or a gateway routing rule) shows up here
 // without a reload; a pill flashes when its text changes.
 const pills = {};
-function setPill(key, label, value, cls = "") {
+function setPill(key, label, value, cls = "", tag = "span") {
   let el = pills[key];
   const fresh = !el;
   if (fresh) {
     if (!Object.keys(pills).length) $("status").textContent = "";
-    el = pills[key] = document.createElement("span");
+    el = pills[key] = document.createElement(tag);
+    el.id = "pill-" + key;
     el.innerHTML = '<span class="k"></span><span class="v"></span>';
     $("status").appendChild(el);
   }
@@ -339,13 +353,53 @@ async function pollStatus() {
     setPill("via", "LLM", `${s.via} · ${s.key_kind}`, s.gateway ? "on" : "");
     const served = s.served_model && s.served_model !== s.model ? ` → served ${s.served_model}` : "";
     setPill("model", "Model", s.model + served);
-    setPill("tools", "Tools", `${s.tools} · ${s.read_only ? "read-only" : "read and write"}`, s.read_only ? "on" : "");
+    setPill("tools", "Tools", `${s.tools} · ${s.read_only ? "read-only" : "read and write"}`, s.read_only ? "on" : "", "button");
+    const names = s.tool_names || [];
+    if (names.join() !== toolNames.join()) { toolNames = names; renderToolMenu(); }
     if (s.error) setPill("error", "Reload", "failed, see logs", "bad");
     else if (pills.error) { pills.error.remove(); delete pills.error; }
   } catch { /* checkHealth reports an unreachable service */ }
 }
 pollStatus();
 setInterval(pollStatus, 1500);
+
+// Clicking the Tools pill lists every tool the agent can call, marking the
+// ones that write. It follows the live config, so it shrinks to the
+// read-only set when .env scopes the MCP endpoint down.
+const WRITE_TOOLS = new Set(["execute_insert", "execute_update", "executeProcedure"]);
+let toolNames = [];
+function renderToolMenu() {
+  $("tool-menu").replaceChildren(...toolNames.map((name) => {
+    const li = document.createElement("li");
+    li.textContent = name;
+    if (WRITE_TOOLS.has(name)) {
+      const w = document.createElement("span");
+      w.className = "w";
+      w.textContent = "writes";
+      li.append(w);
+    }
+    return li;
+  }));
+}
+function toggleToolMenu(open) {
+  const menu = $("tool-menu"), pill = pills.tools;
+  if (!pill) return;
+  open = open ?? menu.hidden;
+  menu.hidden = !open;
+  pill.setAttribute("aria-expanded", String(open));
+  if (open) {
+    const r = pill.getBoundingClientRect();
+    menu.style.top = r.bottom + 6 + "px";
+    menu.style.left = Math.max(8, Math.min(r.left, innerWidth - menu.offsetWidth - 8)) + "px";
+  }
+}
+document.addEventListener("click", (e) => {
+  if (e.target.closest("#pill-tools")) toggleToolMenu();
+  else if (!e.target.closest("#tool-menu")) toggleToolMenu(false);
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("tool-menu").hidden) toggleToolMenu(false);
+});
 
 // One <li> per tool call. Labels and SQL come from the server as plain text
 // and are only ever set with textContent.

@@ -106,6 +106,17 @@ def test_opens_straight_to_chat_without_a_key(page, open_server):
     ])
 
 
+def test_tools_pill_lists_the_tools(page, open_server):
+    page.goto(open_server)
+    menu = page.locator("#tool-menu")
+    expect(menu).to_be_hidden()
+    page.locator("#pill-tools").click()
+    expect(menu.locator("li")).to_have_text(["getCatalogs", "getTables", "getColumns", "queryData"])
+    expect(page.locator("#pill-tools")).to_have_attribute("aria-expanded", "true")
+    page.keyboard.press("Escape")
+    expect(menu).to_be_hidden()
+
+
 def test_reply_renders_markdown_and_strips_scripts(page, open_server):
     page.goto(open_server)
     send(page, "top deals?")
