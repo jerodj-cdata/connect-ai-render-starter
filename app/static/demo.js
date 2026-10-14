@@ -1,8 +1,10 @@
-// Presenter mode for the Foundations demo, loaded by /?demo. Each press of a
-// presenter clicker (Page Down, or the right arrow) runs the next step in
-// STEPS, so the speaker reads demo/SCRIPT.md and never drives the app.
-//   Page Down / → : next step       Page Up / ← : step back (runs nothing)
-//   Home : reset to the direct act and a clear chat   End : hide or show the HUD
+// Presenter mode for the Foundations demo, loaded by /?demo. Each "next"
+// runs the step in STEPS, so the speaker reads demo/SCRIPT.md and never
+// drives the app by hand. Option-key combos work on a laptop keyboard, even
+// while dictated text sits in the chat box:
+//   ⌥→ (or Page Down, or → in an empty box) : next   ⌥← (or Page Up) : step back
+//   ⌥R (or Home) : reset to the direct stage and a clear chat
+//   ⌥H (or End) : hide or show the HUD
 // Uses the chat page's own globals: send(), threadId, apiKey, $().
 
 // Worded to be read aloud: the speaker dictates them, and these are the
@@ -42,6 +44,7 @@ style.textContent = `
   #demo-diff .title { font-weight: 600; margin-bottom: 6px; }
   #demo-diff pre { margin: 0; font: 14px/1.6 "DM Mono", monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
   #demo-diff .add { color: #9BE59B; } #demo-diff .del { color: #FF9C94; }
+  #intro > div { display: none; }  /* names Connect AI before the script does */
 `;
 document.head.appendChild(style);
 document.body.append(hud, card);
@@ -96,6 +99,7 @@ async function ask(text) {
 }
 
 let busy = false;
+let lastNext = 0;
 async function run(step) {
   card.hidden = true;
   if (step.ask) await ask(step.ask);
@@ -104,7 +108,9 @@ async function run(step) {
 }
 
 async function next() {
-  if (busy || cursor >= STEPS.length) return;
+  // One press, one step: a held key or a doubled event mustn't skip ahead.
+  if (busy || cursor >= STEPS.length || Date.now() - lastNext < 1500) return;
+  lastNext = Date.now();
   busy = true;
   const step = STEPS[cursor];
   try {
@@ -132,14 +138,19 @@ async function reset() {
 }
 
 document.addEventListener("keydown", (e) => {
+  if (e.repeat) return;
   const typing = document.activeElement === $("message") && $("message").value;
-  if (e.key === "PageDown" || (e.key === "ArrowRight" && !typing)) {
+  // e.code, not e.key: Option+R types "®" on a Mac keyboard.
+  const opt = e.altKey && !e.metaKey && !e.ctrlKey;
+  const is = (code, key, needsEmpty = true) =>
+    (opt && e.code === code) || (!e.altKey && e.key === key && (!needsEmpty || !typing));
+  if (is("ArrowRight", "PageDown", false) || (!e.altKey && e.key === "ArrowRight" && !typing)) {
     e.preventDefault(); next();
-  } else if (e.key === "PageUp" || (e.key === "ArrowLeft" && !typing)) {
+  } else if (is("ArrowLeft", "PageUp", false) || (!e.altKey && e.key === "ArrowLeft" && !typing)) {
     e.preventDefault(); cursor = Math.max(0, cursor - 1); paintHud();
-  } else if (e.key === "Home" && !typing) {
+  } else if (is("KeyR", "Home")) {
     e.preventDefault(); reset();
-  } else if (e.key === "End" && !typing) {
+  } else if (is("KeyH", "End")) {
     e.preventDefault(); hud.hidden = !hud.hidden;
   }
 });

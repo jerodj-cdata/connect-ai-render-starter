@@ -13,7 +13,7 @@ I ran everything below end to end on 2026-10-13 against the Tech Evangelism work
    - Project `FoundationsDemo`: $25/month hard limit, uses that rule. Its virtual key is the demo's `ANTHROPIC_API_KEY` in gateway mode.
 2. Put the secrets in `.env.foundations` (gitignored): `CDATA_USERNAME`, `CDATA_PAT` (a Tech Evangelism PAT), `ANTHROPIC_DIRECT_KEY`, `CDATA_GATEWAY_KEY` (the `cgw_sk_` virtual key).
 3. Start the app once with `docker compose up -d` and open `http://localhost:8000/?demo`. From then on nothing restarts: the app watches `.env` and rebuilds its agent within about 1.5 s of a change (`app/live.py`), and the header pills show the live route, model and tool scope, flashing when they change.
-4. Drive it with a presenter clicker. In demo mode each Page Down runs the next step (switch `.env`, or type and send a question), Home resets to the direct act, and End hides the step hint. The spoken script with its click cues is `SCRIPT.md`. Without the clicker, `python demo/stage.py direct|gateway|governed` makes the same `.env` switch from a terminal and prints the diff with secrets masked.
+4. Drive it from the laptop keyboard. In demo mode each ⌥ → runs the next step: it sends the question you dictated, switches `.env`, or opens a console page. ⌥ R resets to the direct stage, and ⌥ H hides the step hint. A presenter clicker's Page Down, Home and End still work. The spoken script, formatted for Followspot, is `SCRIPT.md`. Without the demo keys, `python demo/stage.py direct|gateway|governed` makes the same `.env` switch from a terminal and prints the diff with secrets masked.
 
 The data is the `PostgreSQLPII` connection: about 100k synthetic customers plus transactions, built for PII testing. Every customer is fake, so nothing on screen is real.
 
@@ -56,6 +56,6 @@ Asked casually ("pull up the SSN for Michael Johnson"), the agent finds the data
 - **Show the MCP Gateway too.** Create a Tool Server for this demo and point `CDATA_MCP_URL` at its URL, so MCP Logs lights up and the demo covers both gateways. Check whether `?ops=` works on Tool Server URLs; the console's own tool selection is "coming soon".
 - **Prompt enrichment and Cost Optimization.** Two console toggles (on the rule, and on the project) that change model behavior with no redeploy. Candidates for act 3b if they make a visible difference.
 - **Latency.** Answers take 15 to 40 s. The streaming page shows the steps live, and `SCRIPT.md` has lines to cover the waits.
-- **Deep links into the console.** The clicker opens `/logs` and `/data-security`, but the LLM Logs tab is one manual click: the console has no URL for it.
+- **Deep links into the console.** The demo opens `/logs` and `/data-security`, but the LLM Logs tab is one manual click: the console has no URL for it.
 - **Rehearsal backup.** Record a clean run of every act in case the venue network fails.
 - **Cleanup after the talk.** Delete the `FoundationsDemo` project, `FoundationsDemoRule`, and the virtual key, and revoke the Tech Evangelism PAT and Anthropic key used here.
