@@ -6,7 +6,20 @@ The run of show, the questions and the traps behind this script are in `FOUNDATI
 
 ## Before you go on
 
-*Open `http://localhost:8000/?demo` full screen, and log in to `cloud.cdata.com` in the same browser (Tech Evangelism). Press **Home** once: the app resets to the direct act and clears the chat. The bottom-left corner should read "Demo 1/8". Press **End** to hide that hint if you don't want the room to see it; the clicker still works.*
+Where everything lives:
+
+| What | Where |
+| --- | --- |
+| The app (presenter mode) | http://localhost:8000/?demo |
+| Connect AI console, logs | https://cloud.cdata.com/logs (Query Log and LLM Logs tabs) |
+| Routing rule `FoundationsDemoRule` | https://cloud.cdata.com/ai-gateway/routing-rules |
+| Project `FoundationsDemo` (budget) | https://cloud.cdata.com/ai-gateway/projects/foundationsdemo |
+| Data Security rules | https://cloud.cdata.com/data-security |
+| The config the clicker edits | `.env` at the repo root, rewritten by `demo/stage.py` |
+| Your keys for each stage | `.env.foundations` at the repo root (never on screen) |
+| Starter repo | https://github.com/jerodj-cdata/connect-ai-render-starter |
+
+*Start the app with `docker compose up -d` from the repo root if it isn't running. Open http://localhost:8000/?demo full screen, and log in to https://cloud.cdata.com in the same browser (Tech Evangelism workspace). Press **Home** once: the app resets to the direct stage and clears the chat. The bottom-left corner should read "Demo 1/8". Press **End** to hide that hint if you don't want the room to see it; the clicker still works.*
 
 *Run one warm-up question during setup so the first live answer isn't the slowest one, then press Home again.*
 
@@ -34,7 +47,7 @@ That's fine on one laptop. Across a team of fifty developers, it's fifty Anthrop
 
 So let's put the Connect AI gateway in front of it. Here's the whole change.
 
-**[CLICK]** *(the .env diff appears top right, and the LLM pill flashes yellow)*
+**[CLICK]** *(the clicker rewrites `.env` at the repo root; the diff appears top right, and the LLM pill flashes yellow)*
 
 That's two lines: a base URL that points at Connect AI, and a Connect AI virtual key in place of the Anthropic key. The code and the SDK stay the same. I tried this with both the Anthropic SDK and the OpenAI SDK, and neither one needed a code change.
 
@@ -52,25 +65,27 @@ Same answer, same Michael Johnson. So what did those two lines get us?
 
 ## 3. What you got (2:45)
 
-**[CLICK]** *(opens the Connect AI console in a second tab)*
+**[CLICK]** *(opens https://cloud.cdata.com/logs in a second tab)*
 
-*(Click the **LLM Logs** tab. Expand the newest row.)*
+*(Go to that tab. Click the **LLM Logs** tab. Expand the newest row.)*
 
 Every model call that agent made is here. Tokens, cost, and latency for each one. And the log ties each call to a user and to a project. This project has a twenty-five dollar monthly budget with a hard limit, so once it reaches twenty-five dollars, the gateway blocks new requests. Every response also includes headers with the budget used and remaining, so your app can see it coming.
 
+*(Optional: the budget setting is at https://cloud.cdata.com/ai-gateway/projects/foundationsdemo.)*
+
 Now look at these two fields. Model requested, and model served. They can differ, because the routing rule on the gateway picks the model, not the app. I tested this. I asked for Opus, Gemini, GPT-4o and a model name I made up. Sonnet answered every time, because the rule sends everything to Sonnet. So the model name in your code becomes a label, and the platform team can change models or add a fallback without anybody redeploying.
 
-*(Optional, if you're ahead on time: edit FoundationsDemoRule, move Haiku to the top, save, and ask a follow-up in the app. The Model pill shows "served claude-haiku-5-5." Put Sonnet back afterwards.)*
+*(Optional, if you're ahead on time: go to https://cloud.cdata.com/ai-gateway/routing-rules, edit FoundationsDemoRule, move Haiku to the top, save, and ask a follow-up in the app. The Model pill shows "served claude-haiku-5-5." Put Sonnet back afterwards.)*
 
 Plenty of gateways do this part, and routing, logs and budgets are becoming standard. The part I think matters more is what the agent can touch.
 
 ## 4. Governed access (4:15)
 
-*(Switch back to the app tab.)*
+*(Switch back to the app tab, http://localhost:8000/?demo.)*
 
 Model calls are half the problem. The other half is data. This agent has thirteen tools right now, and some of them can write. So let's lock it down.
 
-**[CLICK]** *(the diff shows the new CDATA_MCP_URL line; the Tools pill flips to "6 · read-only")*
+**[CLICK]** *(the clicker adds one line to `.env`; the diff shows the new CDATA_MCP_URL line; the Tools pill flips to "6 · read-only")*
 
 That's one more line. It's the same MCP endpoint, scoped down to six read-only tools, so the agent can no longer insert, update or run stored procedures. And the app stayed up the whole time.
 
@@ -90,7 +105,7 @@ Four X's, for both of them. The agent ran the query, and the values came back ma
 
 From the model's side, the data simply came back that way.
 
-**[CLICK]** *(opens Data Security in the console tab)*
+**[CLICK]** *(opens https://cloud.cdata.com/data-security in the console tab)*
 
 *(Switch to that tab.)*
 
@@ -98,7 +113,7 @@ The masking happened here, in Connect AI's Data Security settings. Card numbers 
 
 This covers what comes out of your data. It doesn't scrub what someone types into a prompt. When I typed a test card number into the chat, it went straight through to the model.
 
-*(Switch back to the app tab.)*
+*(Switch back to the app tab, http://localhost:8000/?demo.)*
 
 One last test. Let's ask it to do something it shouldn't.
 
@@ -109,6 +124,8 @@ One last test. Let's ask it to do something it shouldn't.
 *(Wait for the refusal.)*
 
 It won't, and it can't. And every query it did run is in the Query Log, tied to the user who ran it.
+
+*(Optional: show it at https://cloud.cdata.com/logs, **Query Log** tab.)*
 
 ## Close (7:00)
 
