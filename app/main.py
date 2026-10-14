@@ -174,10 +174,10 @@ class StageRequest(BaseModel):
 async def demo_stage(body: StageRequest):
     """Switch .env to a demo act (see demo/stage.py); the watcher reloads it."""
     try:
-        diff = live.switch_stage(body.stage)
+        diff, env = live.switch_stage(body.stage)
     except (ValueError, FileNotFoundError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
-    return {"stage": body.stage, "diff": diff}
+    return {"stage": body.stage, "diff": diff, "env": env}
 
 
 def _note_served_model(request: Request, message) -> None:

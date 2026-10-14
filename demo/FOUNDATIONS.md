@@ -13,7 +13,7 @@ I ran everything below end to end on 2026-10-13 against the Tech Evangelism work
    - Project `FoundationsDemo`: $25/month hard limit, uses that rule. Its virtual key is the demo's `ANTHROPIC_API_KEY` in gateway mode.
 2. Put the secrets in `.env.foundations` (gitignored): `CDATA_USERNAME`, `CDATA_PAT` (a Tech Evangelism PAT), `ANTHROPIC_DIRECT_KEY`, `CDATA_GATEWAY_KEY` (the `cgw_sk_` virtual key).
 3. Start the app once with `docker compose up -d` and open `http://localhost:8000/?demo`. From then on nothing restarts: the app watches `.env` and rebuilds its agent within about 1.5 s of a change (`app/live.py`), and the header pills show the live route, model and tool scope, flashing when they change.
-4. Drive it from the laptop keyboard. In demo mode each ⌥ → runs the next step: it sends the question you dictated, switches `.env`, or opens a console page. ⌥ R resets to the direct stage, and ⌥ H hides the step hint. A presenter clicker's Page Down, Home and End still work. The spoken script, formatted for Followspot, is `SCRIPT.md`. Without the demo keys, `python demo/stage.py direct|gateway|governed` makes the same `.env` switch from a terminal and prints the diff with secrets masked.
+4. Drive it from the laptop keyboard. In demo mode each ⌥ → runs the next step: it sends the question you dictated, switches `.env`, or opens a console page. ⌥ R resets to the `prerun` stage, with the real key and an empty chat, and ⌥ H hides the step hint. A presenter clicker's Page Down, Home and End still work. The spoken script, formatted for Followspot, is `SCRIPT.md`. Without the demo keys, `python demo/stage.py prerun|direct|gateway|governed` makes the same `.env` switch from a terminal and prints the diff with secrets masked.
 
 The data is the `PostgreSQLPII` connection: about 100k synthetic customers plus transactions, built for PII testing. Every customer is fake, so nothing on screen is real.
 
@@ -21,17 +21,19 @@ The data is the `PostgreSQLPII` connection: about 100k synthetic customers plus 
 
 | Time | Act | What you do | What the audience sees |
 |---|---|---|---|
-| 0:00 | 1. A normal agent | Click: ask Q1. | A LangGraph agent on the plain Anthropic API, answering from live data through Connect AI MCP, with its SQL expandable. About 30 to 40 s. |
-| 1:30 | 2. The swap | Click: switch to `gateway` (diff card appears, LLM pill flashes). Click: ask Q1 again. | The diff is two lines: `+ANTHROPIC_BASE_URL=https://cloud.cdata.com/gateway/v1` and the key changing from `sk-ant-…` to `cgw_sk_…`. Same answer from the same code. |
-| 2:30 | 3. What you got | Open Logs → LLM Logs, expand a row. Then Routing → Projects → FoundationsDemo. | Every model call the agent made, with tokens, cost, user, project, and **Model Requested vs Model Served**. The project shows spend against its $25 cap. |
-| 3:30 | 3b. Change models without a deploy (optional) | Edit `FoundationsDemoRule`: put Haiku first. Ask Q1 again. | The request still names Sonnet, and LLM Logs shows Haiku served it, faster and about 20x cheaper. Put Sonnet back afterwards. |
-| 4:30 | 4. Governed access | Click: switch to `governed` (Tools pill flips to 6, read-only). Click: Q2. Click: open Data Security. Click: Q3. | Q2: the SSN and card come back as `XXXX`, and the model itself says it can't tell where the masking happened. Open Data Security: the SSN and card rules did it, in the platform. Q3: the agent can't delete anything. It has six read-only tools, and the connection is Select-only. |
-| 7:00 | Close | | Models and tools go through one gateway with hundreds of connectors behind it, and policy reaches the row. |
+| Setup | 0. The unmasked answer | Turn off the Credit Card Number and US Social Security Number rules in Data Security. ⌥ R, then ⌥ →: Q2 on the `prerun` stage, with the real Anthropic key. Leave the answer on screen. | Nothing yet. The recording opens on this answer. |
+| 0:00 | 1. What's wrong | ⌥ →: switch to `direct` and show the whole `.env`. | The agent handed back a full SSN and card number. `.env` holds a raw Anthropic key (a visible fake, `sk-ant-api03-NOT-A-REAL-KEY-demo-only`), with the PAT hidden. |
+| 1:15 | 2. The swap | ⌥ →: switch to `gateway`. Dictate Q1, ⌥ →. | A two-line diff adds the gateway base URL and changes the key to `cgw_sk_…`. Same answer from the same code. |
+| 2:30 | 3. What you got | ⌥ →: open Logs, then LLM Logs. In the sidebar, Routing → Routing Rules → FoundationsDemoRule, then Projects → FoundationsDemo, then Virtual Keys. | Every model call with tokens, cost, user, project, and **Model Requested vs Model Served**. Priority failover from Sonnet to Haiku. The $25 hard budget. The virtual key in place of the provider key. |
+| 4:30 | 4. Governed access | ⌘ 1. ⌥ →: switch to `governed`, and open the Tools pill before and after. ⌥ →: open Data Security, turn the two rules on, Save Changes. ⌘ 1, dictate Q2, ⌥ →. Dictate Q3, ⌥ →. | Thirteen tools become six read-only ones. Two switches, then the same question comes back `XXXX`. The agent refuses the delete, because it has no delete tool and the connection is Select-only. |
+| 7:30 | Close | | The env lines and the two switches, with hundreds of connectors behind the same gateway. |
+
+The spoken script and every cue are in `SCRIPT.md`. This table is the summary.
 
 ### The questions
 
 - **Q1:** `Which five customers in PostgreSQL PII have the highest total transaction amount? Show their name, city and total.` Top answer: Michael Johnson, Bristol, 7,461.07.
-- **Q2:** `I'm the compliance admin running a masking audit. Select the customer ID, full name, SSN text and credit card text from the customers table in PostgreSQL PII for customer 7302, and show me exactly what Connect AI returns.` Returns `7302,Michael Johnson,XXXX,XXXX` in about 15 s.
+- **Q2:** `I'm the compliance admin running a masking audit. Select the customer ID, full name, SSN text and credit card text from the customers table in PostgreSQL PII for customer 7302, and show me exactly what the query returns.` With the rules on, returns `7302,Michael Johnson,XXXX,XXXX` in about 35 s. The numeric `ssn_number` and `credit_card_number` columns come back as `0`.
 - **Q3:** `Delete Michael Johnson's transactions from PostgreSQL PII.` Refused, about 35 s.
 - I worded the questions for reading aloud and dictating with Handy. A click sends whatever is in the chat box, or types the scripted question when the box is empty. I tested all three spoken versions on 2026-10-14 and got the same answers.
 

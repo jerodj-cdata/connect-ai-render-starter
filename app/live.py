@@ -95,15 +95,18 @@ def publish(app, settings, agent, tool_names, llm) -> None:
     app.state.reloaded_at = time.time()
 
 
-def switch_stage(stage: str) -> list[str]:
-    """Run demo/stage.py's switch from inside the container; returns the diff."""
+def switch_stage(stage: str) -> tuple[list[str], list[str]]:
+    """Run demo/stage.py's switch from inside the container.
+
+    Returns the diff and the whole new .env, both with secrets masked.
+    """
     path = WORKSPACE / "demo" / "stage.py"
     spec = importlib.util.spec_from_file_location("demo_stage", path)
     if spec is None or not path.exists():
         raise FileNotFoundError(f"{path} not found: is the project mounted at {WORKSPACE}?")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module.switch(stage)
+    return module.switch(stage), module.show()
 
 
 def _digest(path: Path) -> str | None:
