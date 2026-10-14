@@ -1,6 +1,6 @@
 # Foundations 2026 demo script
 
-A Followspot script: only the part between the two `---` rules goes on the prompter. Everything in `*[...]*` is a cue for you, shown dimmed and never listened for. Read everything else out loud, including the questions, which you dictate into the chat box with Handy. About 8 minutes. The run of show and the traps behind it are in `FOUNDATIONS.md`.
+A Followspot script: only the part between the two `---` rules goes on the prompter. Everything in `*[...]*` is a cue for you, shown dimmed and never listened for. Read everything else out loud, including the questions. After each question, press ⌥ → with the chat box empty, and the app types that question in and sends it. About 8 minutes. The run of show and the traps behind it are in `FOUNDATIONS.md`.
 
 ## Keys (in the app tab)
 
@@ -14,7 +14,7 @@ A Followspot script: only the part between the two `---` rules goes on the promp
 | ⌘ Tab | Between Chrome and VS Code |
 | ⌘ / then ⌘ S | In VS Code: comment or uncomment the selected lines, then save |
 
-The ⌥ → steps: 1 the setup question, 2 the top-customers question, 3 open the logs, 4 open Data Security, 5 the SSN question again, 6 the delete. The `.env` edits in between are yours, in VS Code.
+The ⌥ → steps: 1 the setup question, 2 the top-customers question, 3 open the logs, 4 open Data Security, 5 the Social Security Number question again, 6 the delete. You make the `.env` edits between steps yourself, in VS Code.
 
 ## Where everything lives
 
@@ -33,15 +33,15 @@ The ⌥ → steps: 1 the setup question, 2 the top-customers question, 3 open th
 1. Start the app with `docker compose up -d` from the repo root if it isn't running.
 2. In Chrome, close every tab, then open <http://localhost:8000/?demo> so it's tab 1. The console opens as tab 2 when the script gets there.
 3. Log in to <https://cloud.cdata.com> in the same Chrome profile, Tech Evangelism workspace. Go to **Data Security**, turn off **Credit Card Number** and **US Social Security Number**, and click **Save Changes**. Close that tab.
-4. In the app, press ⌥ R, then ⌥ → with an empty chat box. The app sends the SSN question with your real key. Wait for the answer: the SSN and card number should come back in full. If they come back as XXXX, the rules are still on.
+4. In the app, press ⌥ R, then ⌥ → with an empty chat box. The app sends the Social Security Number question with your real key. Wait for the answer: the Social Security Number and card number should come back in full. If they come back as XXXX, the rules are still on.
 5. Leave that answer on screen. The hint should read Demo 2/6. Press ⌥ H to hide it.
 6. Open `.env` from the repo root in VS Code, scrolled so the whole file shows. The Connect AI lines are already in it, commented out. Don't edit it yet.
-7. Open this file in Followspot, and click into the app's chat box so the keys and Handy go there.
+7. Open this file in Followspot, and click into the app's chat box so the keys go there.
 8. After recording: check that both Data Security rules are on again, press ⌥ R to put `.env` back, and rotate the Anthropic key, the virtual key and the PAT, since all three were on screen.
 
 ---
 
-*[App tab. The unmasked SSN answer from setup is on screen. Step 2 of 6]*
+*[App tab. The unmasked Social Security Number answer from setup is on screen. Step 2 of 6]*
 
 This is the kind of AI agent a lot of you have been building: an AI model, a set of MCP tools, and maybe a LangGraph loop that decides which tool to call next. I put a chat window on it so you can watch it work, but the same setup runs behind your Slack bots, scheduled jobs and internal tools.
 
@@ -61,11 +61,11 @@ That's lines one and two: a base URL that points at the Connect AI LLM Gateway, 
 
 Let's make sure it still works.
 
-*[DICTATE: start Handy and read the question into the chat box]*
+*[Ask it out loud]*
 
 Which five customers in Postgres Q.L. PII have the highest total transaction amount? Show their name, city and total.
 
-*[Stop Handy. Press ⌥ → to send]*
+*[Press ⌥ →. The question types itself and sends]*
 
 The agent makes the same calls it always did, and now they go through the gateway.
 
@@ -113,13 +113,13 @@ Two switches. They apply to every query result, from every agent in this workspa
 
 Same question I asked at the start.
 
-*[DICTATE: start Handy and read the question into the chat box]*
+*[Ask it out loud]*
 
 I'm the compliance admin running a masking audit. Select the customer ID, full name, SSN text and credit card text from the customers table in PostgreSQL PII for customer seven three zero two, and show me exactly what the query returns.
 
-*[Stop Handy. Check the box says 7302, then press ⌥ → to send]*
+*[Press ⌥ →. The question types itself and sends]*
 
-It's running the same SQL as before, selecting the SSN column and the card column by name.
+It's running the same SQL as before, selecting the Social Security Number column and the card column by name.
 
 *[Wait for 7302, Michael Johnson, XXXX, XXXX]*
 
@@ -129,11 +129,11 @@ This covers what comes out of your data. It doesn't scrub what someone types int
 
 One last test. Let's ask it to do something it shouldn't.
 
-*[DICTATE: start Handy and read the question into the chat box]*
+*[Ask it out loud]*
 
 Delete Michael Johnson's transactions from PostgreSQL PII.
 
-*[Stop Handy. Press ⌥ → to send]*
+*[Press ⌥ →. The question types itself and sends]*
 
 It has no delete tool to call. And even if it did, this user only has read access to that connection. Either one alone would stop it.
 
@@ -154,8 +154,8 @@ Thank you.
 ## If something goes wrong
 
 - **An answer hangs past a minute:** press ⌥ ← to step back one, then ⌥ → to send it again. Click into the chat box first if it lost focus.
-- **Handy mangles a question:** clear the box and press ⌥ →. With an empty box, the demo types the scripted question itself.
-- **The final SSN answer isn't masked:** the rules didn't save. Check both switches and Save Changes in Data Security, then ask again.
+- **Something is already in the chat box:** ⌥ → sends whatever is there, so clear it first.
+- **The final Social Security Number answer isn't masked:** the rules didn't save. Check both switches and Save Changes in Data Security, then ask again.
 - **The hint shows an error:** it names the problem. A failed config switch leaves the previous agent running, so the demo keeps working on the last good setup.
 - **⌥ → does nothing:** the focus is on another tab or outside the page. Press ⌘ 1 and click into the chat box.
 - **Starting over:** turn the two rules off again, then repeat steps 4 and 5 of Before you record. ⌥ R also puts `.env` back, so reopen it in VS Code if it shows a changed-on-disk prompt.
