@@ -54,7 +54,7 @@ Here's how it's wired.
 
 A raw Anthropic API key in an env file. In a real team, every app that copied it uses the same key. Nobody can see who asked what, nothing caps the spend, the agent stops if the provider goes down, and it has thirteen tools, some of which can write to the database.
 
-By the end of this segment, this same AI chatbot will have cost tracking, a hard budget, model routing with a fallback, read-only data access and masked PII, and that whole change is three lines in the env file.
+By the end of this segment, this same AI chatbot will have cost tracking, a hard budget, model routing with a fallback, read-only tools, masked PII and data access scoped to each user, and most of that is three lines in the env file.
 
 *[Comment out the ANTHROPIC_API_KEY sk-ant line, uncomment the two lines under it, ⌘ S. Then ⌘ Tab to Chrome: the LLM pill flashes to Connect AI LLM Gateway]*
 
@@ -176,7 +176,7 @@ So, three lines of config and two switches. Two of the lines put every model cal
 
 Today I showed it on Postgres. Connect AI connects to hundreds of sources, including Salesforce, NetSuite, Snowflake and SAP, so the same agent and the same gateway work against those too.
 
-The starter agent from this demo is open source under the MIT license. Clone it, add your keys, run docker compose up, and point it at your own Connect AI account. There's a free Developer Edition of Connect AI, and the LLM Gateway and Data Security are in early access. The links are on the slide.
+The starter agent from this demo is open source under the MIT license. Clone it, add your keys, run docker compose up, and point it at your own free trial of Connect AI.
 
 Thank you.
 
