@@ -1,0 +1,60 @@
+name: Bug report
+description: Something in the starter doesn't work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Don't paste secrets.** Leave out your `CDATA_PAT`, LLM API keys,
+        `APP_API_KEY` and `DATABASE_URL`, and check logs before pasting them.
+        If you did paste one, revoke it now (see SECURITY.md).
+
+        Security problems go through the Security tab, not here.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where are you running it?
+      options:
+        - Render (Deploy button or Blueprint)
+        - Locally with docker compose
+        - Locally without Docker
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: LLM_MODEL
+      description: Also say if you point OPENAI_BASE_URL at a gateway or local model.
+      placeholder: openai:gpt-4o
+
+  - type: textarea
+    id: healthz
+    attributes:
+      label: /healthz output
+      description: "`curl <your-url>/healthz`. Leave blank if the service won't start."
+      render: json
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log lines
+      description: |
+        Startup problems print a line starting with `Startup failed:`; include it.
+        For the cron job, include the run's log.
+      render: text
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: "`git rev-parse --short HEAD`, or the date you deployed."

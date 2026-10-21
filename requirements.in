@@ -1,0 +1,15 @@
+# Top-level dependencies. requirements.txt is compiled from this file with
+# exact pins; edit here, then regenerate:
+#   uv pip compile requirements.in --universal --python-version 3.12 -o requirements.txt
+cdata-connect-ai
+fastapi
+uvicorn[standard]
+langchain
+langgraph
+langgraph-checkpoint-postgres
+langchain-mcp-adapters
+# One integration package per LLM provider you want LLM_MODEL to reach.
+langchain-openai
+langchain-anthropic
+psycopg[binary,pool]
+requests
