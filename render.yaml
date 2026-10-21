@@ -72,11 +72,12 @@ services:
         sync: false
       - key: CDATA_PAT
         sync: false
-      # Your Salesforce connection's name in Connect AI. Salesforce1 is the
-      # default name; if yours differs, change it on this service's
-      # Environment tab after deploying.
+      # Your Salesforce connection's name in Connect AI, exactly as it appears
+      # under Sources. Render asks for it on first deploy; leave it blank to use
+      # Salesforce1, the default name. sync: false keeps later Blueprint syncs
+      # from overwriting what you set on the Environment tab.
       - key: CDATA_SF_CATALOG
-        value: Salesforce1
+        sync: false
       - key: DIGEST_LOOKAHEAD_DAYS
         value: "14"
       - key: SLACK_WEBHOOK_URL # optional; leave blank to skip Slack
