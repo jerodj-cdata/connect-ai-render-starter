@@ -285,8 +285,9 @@ All verified against a live tenant, 2026-09:
 - Tables are `[Catalog].[Schema].[Table]`. The catalog is the **connection name**
   in Connect AI, so it varies per account; it is set by `CDATA_SF_CATALOG`. For
   Salesforce the schema is always `Salesforce`.
-- `Salesforce1` is the one default for `CDATA_SF_CATALOG`, in the code,
-  `render.yaml` and the README. Keep all three in step.
+- `Salesforce1` is the one default for `CDATA_SF_CATALOG`. It is set only in
+  the code (the fallback for a blank value); `render.yaml` and the README
+  describe it. Keep all three in step.
 - Connection names often contain hyphens (`Salesforce-Prod`), so identifier
   validation must allow them. Only `]` can escape a bracketed identifier.
 - Connect AI reports query errors (such as a missing catalog) as **HTTP 200**
@@ -329,6 +330,11 @@ All verified against a live tenant, 2026-09:
   left `SLACK_WEBHOOK_URL` blank). That is what lets the agent prompt for both
   `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` and use whichever is filled in.
 - Preview environments do not inherit prompted secrets.
+- `CDATA_SF_CATALOG` is `sync: false`, not `value: Salesforce1`. A value set
+  in the Blueprint is expected to be reapplied on sync, which would reset any
+  deploy whose connection has another name (the tested one is `Salesforce`)
+  and undo fixes made on the Environment tab. That sync behaviour is inferred,
+  not observed; confirm the catalog on the cron job after the first sync.
 - `render.yaml` uses Render's native Python runtime, not the `Dockerfile`.
   Keep the Dockerfile's Python version in step with `PYTHON_VERSION`.
 - The Deploy to Render button reads `render.yaml` anonymously, so this repo must

@@ -61,8 +61,9 @@ everything your PAT can, and query results are sent to your LLM provider.
   compile command at the top of that file (it needs
   [uv](https://docs.astral.sh/uv/)). Commit both files.
 - **Keep defaults in step.** `CDATA_SF_CATALOG` defaults to `Salesforce1` in
-  `jobs/pipeline_digest.py`, `render.yaml`, and the README. Change all three
-  together.
+  `jobs/pipeline_digest.py`, which falls back to it when the variable is blank.
+  `render.yaml` (where it is `sync: false`, so Render prompts for it) and the
+  README only describe that default. Change all three together.
 - **Don't weaken local-only auth.** An empty `APP_API_KEY` disables the API
   key check. That is only safe because `render.yaml` always generates a key and
   `compose.yaml` binds ports to `127.0.0.1`. Keep both.
